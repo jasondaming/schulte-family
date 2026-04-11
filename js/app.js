@@ -101,9 +101,9 @@ function restoreViews() {
       <div class="view-header">
         <h2>Family Tree</h2>
         <div class="tree-controls">
-          <button id="tree-zoom-in" title="Zoom in">+</button>
+          <button id="tree-zoom-in" title="Expand all">Expand All</button>
           <button id="tree-zoom-reset" title="Reset">Reset</button>
-          <button id="tree-zoom-out" title="Zoom out">&minus;</button>
+          <button id="tree-zoom-out" title="Collapse all">Collapse</button>
         </div>
       </div>
       <div id="tree-container"></div>`;

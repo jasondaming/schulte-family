@@ -54,17 +54,8 @@ function render() {
   }
 
   if (currentFilter === 'upcoming') {
-    households = households.filter(h =>
-      h.members.some(m => {
-        const days = daysUntilBirthday(m.birthday);
-        return days !== null && days <= 30;
-      })
-    );
-    households.sort((a, b) => {
-      const da = Math.min(...a.members.map(m => daysUntilBirthday(m.birthday) ?? 999));
-      const db = Math.min(...b.members.map(m => daysUntilBirthday(m.birthday) ?? 999));
-      return da - db;
-    });
+    renderUpcomingBirthdays(container);
+    return;
   }
 
   if (currentFilter === 'branch') {
@@ -121,6 +112,56 @@ function buildHouseholds() {
   }
 
   return households;
+}
+
+function renderUpcomingBirthdays(container) {
+  // Collect all living people with birthdays in the next 60 days
+  const upcoming = [];
+  for (const p of allPeople) {
+    if (p.deceased || !p.birthday) continue;
+    const days = daysUntilBirthday(p.birthday);
+    if (days !== null && days <= 60) {
+      upcoming.push({ person: p, days });
+    }
+  }
+  upcoming.sort((a, b) => a.days - b.days);
+
+  if (upcoming.length === 0) {
+    container.innerHTML = '<p class="loading">No upcoming birthdays in the next 60 days.</p>';
+    return;
+  }
+
+  let html = '<div class="birthday-list">';
+  for (const { person: p, days } of upcoming) {
+    const name = `${esc(p.firstName)} ${esc(p.lastName || '')}`.trim();
+    const dateStr = fmtBday(p.birthday);
+    const age = getUpcomingAge(p.birthday);
+    let when;
+    if (days === 0) when = '<strong>Today!</strong>';
+    else if (days === 1) when = 'Tomorrow';
+    else when = `in ${days} days`;
+
+    html += `<div class="birthday-row${days <= 7 ? ' birthday-soon' : ''}">`;
+    html += `<span class="birthday-row-name">${name}</span>`;
+    html += `<span class="birthday-row-date">${dateStr}${age ? ` (turning ${age})` : ''}</span>`;
+    html += `<span class="birthday-row-when">${when}</span>`;
+    html += `</div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function getUpcomingAge(dateStr) {
+  if (!dateStr) return null;
+  try {
+    const bd = new Date(dateStr);
+    if (isNaN(bd)) return null;
+    const today = new Date();
+    let age = today.getFullYear() - bd.getFullYear();
+    const thisYearBd = new Date(today.getFullYear(), bd.getMonth(), bd.getDate());
+    if (thisYearBd < today) age += 1; // birthday already passed, so next year
+    return age;
+  } catch { return null; }
 }
 
 function renderByBranch(container, households) {

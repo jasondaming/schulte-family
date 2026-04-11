@@ -258,22 +258,33 @@ nav {
   font-weight: 600;
 }
 
+/* Birthday list */
+.birthday-list { max-width: 600px; }
+.birthday-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #eee;
+}
+.birthday-row:hover { background: var(--primary-light); }
+.birthday-row.birthday-soon { background: #fff8e8; }
+.birthday-row-name { font-weight: 600; min-width: 150px; }
+.birthday-row-date { color: var(--text-muted); font-size: 0.9rem; flex: 1; }
+.birthday-row-when { font-size: 0.85rem; color: var(--accent); font-weight: 500; white-space: nowrap; }
+
 /* === Family Tree === */
 .tree-controls {
   display: flex;
   gap: 0.25rem;
 }
 .tree-controls button {
-  width: 36px;
-  height: 36px;
+  padding: 0.3rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  font-size: 1.1rem;
+  font-size: 0.85rem;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 .tree-controls button:hover { background: var(--primary-light); }
 
@@ -283,16 +294,43 @@ nav {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  min-height: 500px;
-  position: relative;
+  min-height: 300px;
+  padding: 1rem;
 }
 
-#tree-canvas {
-  min-width: 100%;
-  min-height: 500px;
+/* HTML tree items */
+.tree-html { font-size: 0.95rem; }
+.tree-item {
+  display: flex;
+  align-items: center;
+  padding: 0.3rem 0;
+  gap: 0.35rem;
 }
+.tree-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.7rem;
+  width: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.tree-toggle:hover { color: var(--primary); }
+.tree-toggle-spacer { width: 20px; flex-shrink: 0; }
+.tree-item-content { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.tree-item-name { font-weight: 600; }
+.tree-item-loc { font-size: 0.8rem; color: var(--text-muted); }
+.child-count { font-size: 0.8rem; color: var(--text-muted); font-weight: 400; }
 
-/* Tree node styling */
+.tree-item.gen-0 .tree-item-name { color: var(--primary-dark); font-size: 1.1rem; }
+.tree-item.gen-1 .tree-item-name { color: var(--primary); }
+.tree-item.gen-2 .tree-item-name { color: var(--text); }
+.tree-item.gen-3 .tree-item-name { color: var(--text); font-weight: 500; }
+.tree-item.gen-4 .tree-item-name { color: var(--text-muted); font-weight: 500; }
+.tree-item.deceased .tree-item-name { opacity: 0.5; font-style: italic; }
+
+/* Old SVG tree node styling — kept for reference but unused */
 .tree-node {
   position: absolute;
   background: var(--surface);

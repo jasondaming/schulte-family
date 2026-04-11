@@ -156,16 +156,50 @@ function handleGetData(params) {
 }
 
 // === UPDATE ===
-// Users can only update their own row (matched by token).
+// Users can edit their own row, their spouse's row, and their children's rows.
 // Only contact fields are editable — not name, birthday, relationships, etc.
 
 function handleUpdate(body) {
-  const sheetRow = verifyToken(body.token);
-  if (!sheetRow) return { error: 'Invalid or expired session.' };
+  var mySheetRow = verifyToken(body.token);
+  if (!mySheetRow) return { error: 'Invalid or expired session.' };
 
-  const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
+  var targetPersonId = body.personId;
+  if (!targetPersonId) return { error: 'No personId specified.' };
 
-  const updates = {
+  var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
+  var data = sheet.getDataRange().getValues();
+
+  // Find my row data
+  var myRow = data[mySheetRow - 1];
+  var myPersonId = myRow[COL.PERSON_ID - 1];
+  var mySpouseId = myRow[COL.SPOUSE_ID - 1];
+
+  // Find the target row
+  var targetSheetRow = null;
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][COL.PERSON_ID - 1] == targetPersonId) {
+      targetSheetRow = i + 1;
+      break;
+    }
+  }
+  if (!targetSheetRow) return { error: 'Person not found.' };
+
+  // Authorization check: can only edit self, spouse, or children
+  var targetRow = data[targetSheetRow - 1];
+  var targetParentId = targetRow[COL.PARENT_ID - 1];
+  var allowed = false;
+
+  if (targetPersonId == myPersonId) {
+    allowed = true; // self
+  } else if (mySpouseId && targetPersonId == mySpouseId) {
+    allowed = true; // spouse
+  } else if (targetParentId == myPersonId || (mySpouseId && targetParentId == mySpouseId)) {
+    allowed = true; // child
+  }
+
+  if (!allowed) return { error: 'You can only edit yourself, your spouse, or your children.' };
+
+  var updates = {
     [COL.PHONE]:   body.phone,
     [COL.CELL]:    body.cell,
     [COL.EMAIL]:   body.email,
@@ -175,9 +209,9 @@ function handleUpdate(body) {
     [COL.ZIP]:     body.zip,
   };
 
-  for (const [col, value] of Object.entries(updates)) {
-    if (value !== undefined) {
-      sheet.getRange(sheetRow, parseInt(col)).setValue(value);
+  for (var col in updates) {
+    if (updates[col] !== undefined) {
+      sheet.getRange(targetSheetRow, parseInt(col)).setValue(updates[col]);
     }
   }
 
