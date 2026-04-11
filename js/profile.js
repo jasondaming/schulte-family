@@ -453,22 +453,24 @@ function formatDisplayDate(isoDate) {
 function addChildFormHtml(parent) {
   return `
     <div class="profile-section">
-      <fieldset>
-        <legend>Add a Family Member</legend>
-        <div class="form-row">
-          <div class="form-group"><label>First Name *</label><input type="text" id="new-child-first" required></div>
-          <div class="form-group"><label>Last Name</label><input type="text" id="new-child-last" value="${esc(parent.lastName || '')}"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Birthday</label><input type="date" id="new-child-birthday"></div>
-          <div class="form-group"><label>Cell</label><input type="text" id="new-child-cell"></div>
-        </div>
-        <div class="form-group"><label>Email</label><input type="email" id="new-child-email"></div>
-        <div class="form-actions">
-          <button type="button" id="add-child-submit">Add Family Member</button>
-          <span class="status-msg" id="add-child-status" hidden></span>
-        </div>
-      </fieldset>
+      <form class="profile-form" onsubmit="return false">
+        <fieldset>
+          <legend>Add a Family Member</legend>
+          <div class="form-row">
+            <div class="form-group"><label>First Name *</label><input type="text" id="new-child-first" required></div>
+            <div class="form-group"><label>Last Name</label><input type="text" id="new-child-last" value="${esc(parent.lastName || '')}"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Birthday</label><input type="date" id="new-child-birthday"></div>
+            <div class="form-group"><label>Cell</label><input type="text" id="new-child-cell"></div>
+          </div>
+          <div class="form-group"><label>Email</label><input type="email" id="new-child-email"></div>
+          <div class="form-actions">
+            <button type="button" id="add-child-submit">Add Family Member</button>
+            <span class="status-msg" id="add-child-status" hidden></span>
+          </div>
+        </fieldset>
+      </form>
     </div>`;
 }
 

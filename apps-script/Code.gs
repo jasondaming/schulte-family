@@ -170,7 +170,7 @@ function handleAuth(params) {
       const isAdmin = String(row[COL.IS_ADMIN - 1] || '').trim().toUpperCase() === 'Y';
       return {
         success: true,
-        token: makeToken(sheetRow),
+        token: makeToken(personId),
         personId: personId,
         sheetRow: sheetRow,
         firstName: String(row[COL.FIRST_NAME - 1] || ''),
@@ -186,8 +186,8 @@ function handleAuth(params) {
 // === GET DATA ===
 
 function handleGetData(params) {
-  const sheetRow = verifyToken(params.token);
-  if (!sheetRow) return { error: 'Invalid or expired session. Please sign in again.' };
+  var myPersonId = verifyToken(params.token);
+  if (!myPersonId) return { error: 'Invalid or expired session. Please sign in again.' };
 
   const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
   const data = sheet.getDataRange().getValues();
@@ -231,9 +231,6 @@ function handleGetData(params) {
 // Admins: can edit contact + identity info for anyone.
 
 function handleUpdate(body) {
-  var mySheetRow = verifyToken(body.token);
-  if (!mySheetRow) return { error: 'Invalid or expired session.' };
-
   var targetPersonId = body.personId;
   if (!targetPersonId) return { error: 'No personId specified.' };
 
@@ -241,15 +238,14 @@ function handleUpdate(body) {
   var sheet = ss.getSheetByName(SHEET_NAME);
   var data = sheet.getDataRange().getValues();
 
-  // Verify my row is valid
-  if (mySheetRow < 2 || mySheetRow > data.length) return { error: 'Invalid session.' };
+  var me = resolveAuth(body.token, data);
+  if (!me) return { error: 'Invalid or expired session.' };
 
-  var myRow = data[mySheetRow - 1];
-  var myPersonId = myRow[COL.PERSON_ID - 1];
-  var mySpouseId = myRow[COL.SPOUSE_ID - 1];
-  var myFirstName = str(myRow[COL.FIRST_NAME - 1]);
-  var myLastName = str(myRow[COL.LAST_NAME - 1]);
-  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
+  var myPersonId = me.personId;
+  var mySpouseId = me.spouseId;
+  var myFirstName = me.firstName;
+  var myLastName = me.lastName;
+  var isAdmin = me.isAdmin;
 
   // Find the target row by personId (never by position)
   var targetSheetRow = null;
@@ -356,20 +352,19 @@ function handleUpdate(body) {
 // Users can add children under themselves. Admins can add anyone.
 
 function handleAddPerson(body) {
-  var mySheetRow = verifyToken(body.token);
-  if (!mySheetRow) return { error: 'Invalid or expired session.' };
   if (!body.firstName || !body.firstName.trim()) return { error: 'First name is required.' };
 
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName(SHEET_NAME);
   var data = sheet.getDataRange().getValues();
 
-  var myRow = data[mySheetRow - 1];
-  var myPersonId = String(myRow[COL.PERSON_ID - 1]);
-  var mySpouseId = myRow[COL.SPOUSE_ID - 1] ? String(myRow[COL.SPOUSE_ID - 1]) : null;
-  var myFirstName = str(myRow[COL.FIRST_NAME - 1]);
-  var myLastName = str(myRow[COL.LAST_NAME - 1]);
-  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
+  var me = resolveAuth(body.token, data);
+  if (!me) return { error: 'Invalid or expired session.' };
+  var myPersonId = me.personId;
+  var mySpouseId = me.spouseId;
+  var myFirstName = me.firstName;
+  var myLastName = me.lastName;
+  var isAdmin = me.isAdmin;
 
   // Determine parent: defaults to the logged-in user
   var parentId = body.parentId ? String(body.parentId) : myPersonId;
@@ -438,18 +433,17 @@ function handleAddPerson(body) {
 }
 
 function handleRemovePerson(body) {
-  var mySheetRow = verifyToken(body.token);
-  if (!mySheetRow) return { error: 'Invalid or expired session.' };
   if (!body.personId) return { error: 'personId is required.' };
 
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName(SHEET_NAME);
   var data = sheet.getDataRange().getValues();
 
-  var myRow = data[mySheetRow - 1];
-  var myPersonId = String(myRow[COL.PERSON_ID - 1]);
-  var mySpouseId = myRow[COL.SPOUSE_ID - 1] ? String(myRow[COL.SPOUSE_ID - 1]) : null;
-  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
+  var me = resolveAuth(body.token, data);
+  if (!me) return { error: 'Invalid or expired session.' };
+  var myPersonId = me.personId;
+  var mySpouseId = me.spouseId;
+  var isAdmin = me.isAdmin;
 
   var targetPersonId = String(body.personId);
 
@@ -471,11 +465,11 @@ function handleRemovePerson(body) {
     if (targetParentId !== myPersonId && targetParentId !== mySpouseId) {
       return { error: 'You can only remove your own children.' };
     }
-    // Don't allow removing someone who has their own children in the database
-    for (var j = 1; j < data.length; j++) {
-      if (String(data[j][COL.PARENT_ID - 1]) === targetPersonId) {
-        return { error: 'Cannot remove someone who has children in the database. Contact an admin.' };
-      }
+  }
+  // Never allow removing someone who has children — prevents orphaned records
+  for (var j = 1; j < data.length; j++) {
+    if (String(data[j][COL.PARENT_ID - 1]) === targetPersonId) {
+      return { error: 'Cannot remove someone who has children in the database. Remove their children first.' };
     }
   }
 
@@ -506,9 +500,6 @@ function handleRemovePerson(body) {
 // they are removed from the directory. Otherwise they stay as inactive/deceased.
 
 function handleDetachSpouse(body) {
-  var mySheetRow = verifyToken(body.token);
-  if (!mySheetRow) return { error: 'Invalid or expired session.' };
-
   var reason = body.reason; // 'death' or 'divorce'
   if (reason !== 'death' && reason !== 'divorce') return { error: 'Reason must be "death" or "divorce".' };
 
@@ -516,12 +507,13 @@ function handleDetachSpouse(body) {
   var sheet = ss.getSheetByName(SHEET_NAME);
   var data = sheet.getDataRange().getValues();
 
-  var myRow = data[mySheetRow - 1];
-  var myPersonId = String(myRow[COL.PERSON_ID - 1]);
-  var mySpouseId = myRow[COL.SPOUSE_ID - 1] ? String(myRow[COL.SPOUSE_ID - 1]) : null;
-  var myFirstName = str(myRow[COL.FIRST_NAME - 1]);
-  var myLastName = str(myRow[COL.LAST_NAME - 1]);
-  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
+  var me = resolveAuth(body.token, data);
+  if (!me) return { error: 'Invalid or expired session.' };
+  var myPersonId = me.personId;
+  var mySpouseId = me.spouseId;
+  var myFirstName = me.firstName;
+  var myLastName = me.lastName;
+  var isAdmin = me.isAdmin;
 
   // Determine who is being detached
   var spousePersonId = body.spousePersonId ? String(body.spousePersonId) : mySpouseId;
@@ -632,18 +624,15 @@ function handleDetachSpouse(body) {
 // === LIFE EVENTS ===
 
 function handleGetEvents(params) {
-  var mySheetRow = verifyToken(params.token);
-  if (!mySheetRow) return { error: 'Invalid or expired session.' };
-
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var peopleSheet = ss.getSheetByName(SHEET_NAME);
   var peopleData = peopleSheet.getDataRange().getValues();
 
-  if (mySheetRow < 2 || mySheetRow > peopleData.length) return { error: 'Invalid session.' };
-  var myRow = peopleData[mySheetRow - 1];
-  var myPersonId = String(myRow[COL.PERSON_ID - 1]);
-  var mySpouseId = myRow[COL.SPOUSE_ID - 1] ? String(myRow[COL.SPOUSE_ID - 1]) : null;
-  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
+  var me = resolveAuth(params.token, peopleData);
+  if (!me) return { error: 'Invalid or expired session.' };
+  var myPersonId = me.personId;
+  var mySpouseId = me.spouseId;
+  var isAdmin = me.isAdmin;
 
   // Build set of person IDs this user is allowed to see
   var allowedIds = new Set([myPersonId]);
@@ -693,8 +682,6 @@ function handleGetEvents(params) {
 }
 
 function handleAddEvent(body) {
-  var mySheetRow = verifyToken(body.token);
-  if (!mySheetRow) return { error: 'Invalid or expired session.' };
   if (!body.personId) return { error: 'personId is required.' };
   if (!body.eventType) return { error: 'eventType is required.' };
 
@@ -702,13 +689,13 @@ function handleAddEvent(body) {
   var peopleSheet = ss.getSheetByName(SHEET_NAME);
   var peopleData = peopleSheet.getDataRange().getValues();
 
-  if (mySheetRow < 2 || mySheetRow > peopleData.length) return { error: 'Invalid session.' };
-  var myRow = peopleData[mySheetRow - 1];
-  var myPersonId = String(myRow[COL.PERSON_ID - 1]);
-  var mySpouseId = myRow[COL.SPOUSE_ID - 1] ? String(myRow[COL.SPOUSE_ID - 1]) : null;
-  var myFirstName = str(myRow[COL.FIRST_NAME - 1]);
-  var myLastName = str(myRow[COL.LAST_NAME - 1]);
-  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
+  var me = resolveAuth(body.token, peopleData);
+  if (!me) return { error: 'Invalid or expired session.' };
+  var myPersonId = me.personId;
+  var mySpouseId = me.spouseId;
+  var myFirstName = me.firstName;
+  var myLastName = me.lastName;
+  var isAdmin = me.isAdmin;
 
   var targetPersonId = String(body.personId);
 
@@ -778,18 +765,15 @@ function handleAddEvent(body) {
 // === CHANGELOG ===
 
 function handleGetChangelog(params) {
-  var mySheetRow = verifyToken(params.token);
-  if (!mySheetRow) return { error: 'Invalid or expired session.' };
-
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var peopleSheet = ss.getSheetByName(SHEET_NAME);
   var peopleData = peopleSheet.getDataRange().getValues();
 
-  if (mySheetRow < 2 || mySheetRow > peopleData.length) return { error: 'Invalid session.' };
-  var myRow = peopleData[mySheetRow - 1];
-  var myPersonId = String(myRow[COL.PERSON_ID - 1]);
-  var mySpouseId = myRow[COL.SPOUSE_ID - 1] ? String(myRow[COL.SPOUSE_ID - 1]) : null;
-  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
+  var me = resolveAuth(params.token, peopleData);
+  if (!me) return { error: 'Invalid or expired session.' };
+  var myPersonId = me.personId;
+  var mySpouseId = me.spouseId;
+  var isAdmin = me.isAdmin;
 
   // Build family set for non-admins
   var allowedIds = new Set([myPersonId]);
@@ -880,29 +864,66 @@ function formatDate(val) {
   return s;
 }
 
-function makeToken(sheetRow) {
+function makeToken(personId) {
   const hash = Utilities.computeDigest(
     Utilities.DigestAlgorithm.SHA_256,
-    sheetRow + ':' + TOKEN_SECRET
+    'pid:' + personId + ':' + TOKEN_SECRET
   ).map(b => (b < 0 ? b + 256 : b).toString(16).padStart(2, '0')).join('').substring(0, 16);
-  return Utilities.base64Encode(sheetRow + ':' + hash);
+  return Utilities.base64Encode('pid:' + personId + ':' + hash);
 }
 
+// Returns the personId (stable, survives row deletes) or null.
 function verifyToken(token) {
   if (!token) return null;
   try {
     const decoded = Utilities.newBlob(Utilities.base64Decode(token)).getDataAsString();
-    const [rowStr, providedHash] = decoded.split(':');
-    const sheetRow = parseInt(rowStr);
-    if (!sheetRow || sheetRow < 2) return null;
-    const expectedHash = Utilities.computeDigest(
-      Utilities.DigestAlgorithm.SHA_256,
-      sheetRow + ':' + TOKEN_SECRET
-    ).map(b => (b < 0 ? b + 256 : b).toString(16).padStart(2, '0')).join('').substring(0, 16);
-    return providedHash === expectedHash ? sheetRow : null;
+    const parts = decoded.split(':');
+    // New format: "pid:<personId>:<hash>"
+    if (parts[0] === 'pid' && parts.length === 3) {
+      const personId = parseInt(parts[1]);
+      const providedHash = parts[2];
+      if (!personId) return null;
+      const expectedHash = Utilities.computeDigest(
+        Utilities.DigestAlgorithm.SHA_256,
+        'pid:' + personId + ':' + TOKEN_SECRET
+      ).map(b => (b < 0 ? b + 256 : b).toString(16).padStart(2, '0')).join('').substring(0, 16);
+      return providedHash === expectedHash ? personId : null;
+    }
+    // Legacy format: "<sheetRow>:<hash>" — reject (force re-login)
+    return null;
   } catch (e) {
     return null;
   }
+}
+
+// Resolve a personId to { sheetRow, rowData } by scanning the People sheet.
+function findPersonById(data, personId) {
+  var pid = String(personId);
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][COL.PERSON_ID - 1]) === pid) {
+      return { sheetRow: i + 1, rowData: data[i] };
+    }
+  }
+  return null;
+}
+
+// Authenticate a token and resolve the caller's row. Returns null or an object with all the
+// caller's info needed by most handlers. Callers should check for null and return an error.
+function resolveAuth(token, data) {
+  var personId = verifyToken(token);
+  if (!personId) return null;
+  var found = findPersonById(data, personId);
+  if (!found) return null;
+  var row = found.rowData;
+  return {
+    personId:  String(row[COL.PERSON_ID - 1]),
+    sheetRow:  found.sheetRow,
+    row:       row,
+    firstName: str(row[COL.FIRST_NAME - 1]),
+    lastName:  str(row[COL.LAST_NAME - 1]),
+    spouseId:  row[COL.SPOUSE_ID - 1] ? String(row[COL.SPOUSE_ID - 1]) : null,
+    isAdmin:   str(row[COL.IS_ADMIN - 1]).toUpperCase() === 'Y',
+  };
 }
 
 // ============================================================
@@ -910,8 +931,7 @@ function verifyToken(token) {
 // ============================================================
 
 function handleGetReunion(params) {
-  var mySheetRow = verifyToken(params.token);
-  if (!mySheetRow) return { error: 'Invalid or expired session.' };
+  if (!verifyToken(params.token)) return { error: 'Invalid or expired session.' };
 
   var ss = SpreadsheetApp.openById(SHEET_ID);
 
@@ -958,16 +978,14 @@ function handleGetReunion(params) {
 }
 
 function handleSignupFood(body) {
-  var mySheetRow = verifyToken(body.token);
-  if (!mySheetRow) return { error: 'Invalid or expired session.' };
   if (!body.dish || !body.dish.trim()) return { error: 'Dish name is required.' };
 
   var ss = SpreadsheetApp.openById(SHEET_ID);
-  var peopleSheet = ss.getSheetByName(SHEET_NAME);
-  var peopleData = peopleSheet.getDataRange().getValues();
-  var myRow = peopleData[mySheetRow - 1];
-  var myPersonId = String(myRow[COL.PERSON_ID - 1]);
-  var myName = str(myRow[COL.FIRST_NAME - 1]) + ' ' + str(myRow[COL.LAST_NAME - 1]);
+  var peopleData = ss.getSheetByName(SHEET_NAME).getDataRange().getValues();
+  var me = resolveAuth(body.token, peopleData);
+  if (!me) return { error: 'Invalid or expired session.' };
+  var myPersonId = me.personId;
+  var myName = me.firstName + ' ' + me.lastName;
 
   var fsSheet = ensureSheet(ss, FOOD_SIGNUP_SHEET,
     ['SignupID','PersonID','PersonName','Dish','Category','Notes','SignedUpAt']);
@@ -988,15 +1006,14 @@ function handleSignupFood(body) {
 }
 
 function handleRemoveSignup(body) {
-  var mySheetRow = verifyToken(body.token);
-  if (!mySheetRow) return { error: 'Invalid or expired session.' };
   if (!body.signupId) return { error: 'signupId required.' };
 
   var ss = SpreadsheetApp.openById(SHEET_ID);
-  var peopleSheet = ss.getSheetByName(SHEET_NAME);
-  var myRow = peopleData = peopleSheet.getDataRange().getValues()[mySheetRow - 1];
-  var myPersonId = String(myRow[COL.PERSON_ID - 1]);
-  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
+  var peopleData = ss.getSheetByName(SHEET_NAME).getDataRange().getValues();
+  var me = resolveAuth(body.token, peopleData);
+  if (!me) return { error: 'Invalid or expired session.' };
+  var myPersonId = me.personId;
+  var isAdmin = me.isAdmin;
 
   var fsSheet = ensureSheet(ss, FOOD_SIGNUP_SHEET,
     ['SignupID','PersonID','PersonName','Dish','Category','Notes','SignedUpAt']);
@@ -1017,16 +1034,13 @@ function handleRemoveSignup(body) {
 
 // Admin: add or update a reunion content item (schedule, info, bring list)
 function handleUpsertReunionItem(body) {
-  var mySheetRow = verifyToken(body.token);
-  if (!mySheetRow) return { error: 'Invalid or expired session.' };
-
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var peopleData = ss.getSheetByName(SHEET_NAME).getDataRange().getValues();
-  var myRow = peopleData[mySheetRow - 1];
-  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
-  if (!isAdmin) return { error: 'Admin access required.' };
+  var me = resolveAuth(body.token, peopleData);
+  if (!me) return { error: 'Invalid or expired session.' };
+  if (!me.isAdmin) return { error: 'Admin access required.' };
 
-  var myPersonId = String(myRow[COL.PERSON_ID - 1]);
+  var myPersonId = me.personId;
   var now = new Date().toISOString();
 
   var ruSheet = ensureSheet(ss, REUNION_SHEET,
@@ -1057,13 +1071,11 @@ function handleUpsertReunionItem(body) {
 }
 
 function handleDeleteReunionItem(body) {
-  var mySheetRow = verifyToken(body.token);
-  if (!mySheetRow) return { error: 'Invalid or expired session.' };
-
   var ss = SpreadsheetApp.openById(SHEET_ID);
-  var myRow = ss.getSheetByName(SHEET_NAME).getDataRange().getValues()[mySheetRow - 1];
-  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
-  if (!isAdmin) return { error: 'Admin access required.' };
+  var peopleData = ss.getSheetByName(SHEET_NAME).getDataRange().getValues();
+  var me = resolveAuth(body.token, peopleData);
+  if (!me) return { error: 'Invalid or expired session.' };
+  if (!me.isAdmin) return { error: 'Admin access required.' };
 
   var ruSheet = ensureSheet(ss, REUNION_SHEET,
     ['ID','Type','Title','Body','SortOrder','UpdatedAt','UpdatedBy']);

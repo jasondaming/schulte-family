@@ -66,7 +66,7 @@ function render() {
 
   container.innerHTML = `
     <!-- Hero -->
-    <div class="reunion-hero">
+    <div class="reunion-hero" id="reunion-hero">
       <div class="reunion-hero-inner">
         <div class="reunion-flag">🇺🇸</div>
         <h1 class="reunion-title" id="r-title">${esc(eventTitle)}</h1>
@@ -261,7 +261,7 @@ function showInfoEditor() {
         <div class="form-group"><label>Location</label><input id="ie-loc" type="text" value="${esc(get('event_location'))}" placeholder="City, State or venue name"></div>
       </div>
       <div class="form-group"><label>Address</label><input id="ie-addr" type="text" value="${esc(get('event_address'))}" placeholder="Street address (optional)"></div>
-      <div class="form-group"><label>Welcome Note</label><input id="ie-note" type="text" value="${esc(get('event_welcome'))}" placeholder="A brief message for family members…"></div>
+      <div class="form-group"><label>Welcome Note</label><input id="ie-note" type="text" value="${esc(get('welcome_note'))}" placeholder="A brief message for family members…"></div>
       <div class="form-actions">
         <button id="ie-save" class="btn-primary">Save</button>
         <button id="ie-cancel" class="btn-secondary">Cancel</button>
@@ -280,7 +280,7 @@ function showInfoEditor() {
       event_date:     document.getElementById('ie-date').value.trim(),
       event_location: document.getElementById('ie-loc').value.trim(),
       event_address:  document.getElementById('ie-addr').value.trim(),
-      event_welcome:  document.getElementById('ie-note').value.trim(),
+      welcome_note:  document.getElementById('ie-note').value.trim(),
     };
 
     try {
