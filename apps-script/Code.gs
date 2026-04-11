@@ -576,26 +576,18 @@ function handleDetachSpouse(body) {
   var message = '';
 
   if (reason === 'death') {
-    // Mark as deceased
+    // Mark as deceased but KEEP in the database for family records
     sheet.getRange(spouseSheetRow, COL.DECEASED).setValue('Y');
     if (body.deathDate) {
       sheet.getRange(spouseSheetRow, COL.DEATH_DATE).setValue(body.deathDate);
     }
-
-    if (isMarriedIn && !hasChildren) {
-      // Remove entirely — they have no tree connections left
-      sheet.deleteRow(spouseSheetRow);
-      message = spouseName + ' has been marked as deceased and removed from the directory.';
-    } else {
-      message = spouseName + ' has been marked as deceased.';
-    }
+    message = spouseName + ' has been marked as deceased.';
   } else {
-    // Divorce
+    // Divorce — remove married-in spouses with no children; keep everyone else
     if (isMarriedIn && !hasChildren) {
       sheet.deleteRow(spouseSheetRow);
       message = spouseName + ' has been removed from the directory.';
     } else {
-      // Keep them but unlinked
       message = spouseName + ' has been unlinked. They remain in the directory.';
     }
   }
