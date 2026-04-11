@@ -67,7 +67,7 @@ async function loadData() {
     const result = await fetchFamilies(session.token);
     people = result.people || [];
 
-    restoreTreeView();
+    restoreViews();
 
     initDirectory(people);
     initTree(people);
@@ -86,7 +86,27 @@ async function loadData() {
   }
 }
 
-function restoreTreeView() {
+function restoreViews() {
+  // Restore directory view if it was replaced by loading spinner
+  const dirView = document.getElementById('directory-view');
+  if (dirView && !dirView.querySelector('#search-input')) {
+    dirView.innerHTML = `
+      <div class="view-header">
+        <h2>Family Directory</h2>
+        <div class="dir-header-right">
+          <input type="text" id="search-input" placeholder="Search by name, city, state...">
+          <button id="print-directory-btn" class="btn-secondary print-hide" title="Print directory">🖨️ Print</button>
+        </div>
+      </div>
+      <div class="directory-filters print-hide">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="branch">By Branch</button>
+        <button class="filter-btn" data-filter="upcoming">Upcoming Birthdays</button>
+      </div>
+      <div id="directory-list" class="card-grid"></div>`;
+  }
+
+  // Restore tree view
   const treeView = document.getElementById('tree-view');
   if (treeView && !treeView.querySelector('.view-header')) {
     treeView.innerHTML = `
