@@ -9,6 +9,7 @@ let allPeople = [];
 let peopleById = {};
 let sessionToken = null;
 let myPerson = null;
+let isAdmin = false;
 let eventsByPersonId = {};
 
 const EVENT_TYPE_LABELS = {
@@ -28,6 +29,7 @@ export async function initProfile(people, session) {
   peopleById = {};
   for (const p of people) peopleById[p.personId] = p;
   sessionToken = session.token;
+  isAdmin = !!session.isAdmin;
 
   myPerson = people.find(p => String(p.personId) === String(session.personId));
   if (!myPerson) {
@@ -155,6 +157,34 @@ function renderProfileView() {
   const addChildBtn = container.querySelector('#add-child-submit');
   if (addChildBtn) {
     addChildBtn.addEventListener('click', handleAddChild);
+  }
+
+  // Admin parent picker search
+  const parentSearch = container.querySelector('#new-child-parent-search');
+  if (parentSearch) {
+    parentSearch.addEventListener('input', () => {
+      const query = parentSearch.value.toLowerCase().trim();
+      const resultsEl = document.getElementById('new-child-parent-results');
+      if (!query || query.length < 2) { resultsEl.innerHTML = ''; return; }
+      const matches = allPeople
+        .filter(p => !p.deceased && (`${p.firstName} ${p.lastName}`).toLowerCase().includes(query))
+        .slice(0, 8);
+      resultsEl.innerHTML = matches.map(p =>
+        `<div class="person-search-item" data-pid="${p.personId}">${esc(p.firstName)} ${esc(p.lastName || '')} <span class="form-hint">${esc(p.branch || '')}</span></div>`
+      ).join('');
+      resultsEl.querySelectorAll('.person-search-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const pid = Number(item.dataset.pid);
+          const person = peopleById[pid];
+          document.getElementById('new-child-parent-id').value = pid;
+          document.getElementById('new-child-parent-display').textContent =
+            `Parent: ${person.firstName} ${person.lastName || ''}`;
+          document.getElementById('new-child-last').value = person.lastName || '';
+          parentSearch.value = '';
+          resultsEl.innerHTML = '';
+        });
+      });
+    });
   }
 
   // Remove child buttons
@@ -451,11 +481,25 @@ function formatDisplayDate(isoDate) {
 }
 
 function addChildFormHtml(parent) {
+  // Admin gets a parent picker; regular users add under themselves
+  let parentPickerHtml = '';
+  if (isAdmin) {
+    parentPickerHtml = `
+      <div class="form-group">
+        <label>Parent (who is this person a child of?)</label>
+        <input type="text" id="new-child-parent-search" placeholder="Type a name to search..." autocomplete="off">
+        <input type="hidden" id="new-child-parent-id" value="${parent.personId}">
+        <div id="new-child-parent-results" class="person-search-results"></div>
+        <div class="form-hint" id="new-child-parent-display">Currently: ${esc(parent.firstName)} ${esc(parent.lastName || '')} (you)</div>
+      </div>`;
+  }
+
   return `
     <div class="profile-section">
       <form class="profile-form" onsubmit="return false">
         <fieldset>
           <legend>Add a Family Member</legend>
+          ${parentPickerHtml}
           <div class="form-row">
             <div class="form-group"><label>First Name *</label><input type="text" id="new-child-first" required></div>
             <div class="form-group"><label>Last Name</label><input type="text" id="new-child-last" value="${esc(parent.lastName || '')}"></div>
@@ -485,12 +529,17 @@ async function handleAddChild() {
   status.hidden = true;
 
   try {
+    // Admin can set a different parent via the picker
+    const parentIdEl = document.getElementById('new-child-parent-id');
+    const parentId = parentIdEl ? parentIdEl.value : undefined;
+
     const result = await addPerson(sessionToken, {
       firstName,
       lastName: document.getElementById('new-child-last').value.trim(),
       birthday: document.getElementById('new-child-birthday').value,
       cell: document.getElementById('new-child-cell').value.trim(),
       email: document.getElementById('new-child-email').value.trim(),
+      parentId: parentId || undefined,
     });
 
     status.textContent = result.message || 'Added!';
