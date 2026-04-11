@@ -407,9 +407,13 @@ function handleAddPerson(body) {
   newRow[COL.PARENT_ID - 1]  = parseInt(parentId);
   newRow[COL.GENERATION - 1] = parentGen + 1;
   newRow[COL.BRANCH - 1]     = parentBranch;
-  if (body.phone) newRow[COL.PHONE - 1] = body.phone;
-  if (body.cell)  newRow[COL.CELL - 1]  = body.cell;
-  if (body.email) newRow[COL.EMAIL - 1] = body.email;
+  if (body.phone)   newRow[COL.PHONE - 1]   = body.phone;
+  if (body.cell)    newRow[COL.CELL - 1]    = body.cell;
+  if (body.email)   newRow[COL.EMAIL - 1]   = body.email;
+  if (body.address) newRow[COL.ADDRESS - 1] = body.address;
+  if (body.city)    newRow[COL.CITY - 1]    = body.city;
+  if (body.state)   newRow[COL.STATE - 1]   = body.state;
+  if (body.zip)     newRow[COL.ZIP - 1]     = body.zip;
 
   sheet.appendRow(newRow);
 

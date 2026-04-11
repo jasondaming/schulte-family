@@ -3,7 +3,7 @@
  * Only visible to users with isAdmin = true.
  */
 
-import { updateProfile, fetchEvents, addEvent, fetchChangelog } from './api.js';
+import { updateProfile, fetchEvents, addEvent, fetchChangelog, addPerson, removePerson } from './api.js';
 
 let allPeople = [];
 let peopleById = {};
@@ -50,6 +50,7 @@ function renderAdminView() {
 
     <div class="admin-tabs">
       <button class="admin-tab active" data-tab="people">Edit People</button>
+      <button class="admin-tab" data-tab="add">Add Person</button>
       <button class="admin-tab" data-tab="changelog">Changelog</button>
     </div>
 
@@ -59,6 +60,10 @@ function renderAdminView() {
         <div id="admin-search-results" class="admin-search-results"></div>
       </div>
       <div id="admin-editor"></div>
+    </div>
+
+    <div id="admin-add-panel" class="admin-panel" hidden>
+      ${renderAdminAddForm()}
     </div>
 
     <div id="admin-changelog-panel" class="admin-panel" hidden>
@@ -76,9 +81,13 @@ function renderAdminView() {
       container.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       document.getElementById('admin-people-panel').hidden = tab.dataset.tab !== 'people';
+      document.getElementById('admin-add-panel').hidden = tab.dataset.tab !== 'add';
       document.getElementById('admin-changelog-panel').hidden = tab.dataset.tab !== 'changelog';
     });
   });
+
+  // Add person form handlers
+  setupAdminAddForm(container);
 
   // Search
   const searchInput = document.getElementById('admin-search-input');
@@ -505,6 +514,148 @@ function formatDisplayDate(isoDate) {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return `${months[parseInt(m) - 1]} ${parseInt(d)}, ${y}`;
   } catch { return isoDate; }
+}
+
+// === Add Person (admin) ===
+
+function renderAdminAddForm() {
+  return `
+    <div class="admin-add-section">
+      <form class="profile-form" onsubmit="return false">
+        <fieldset>
+          <legend>Add a Family Member</legend>
+          <div class="form-group">
+            <label>Parent (who is this person a child of?) *</label>
+            <input type="text" id="aa-parent-search" placeholder="Type a name to search..." autocomplete="off">
+            <input type="hidden" id="aa-parent-id" value="">
+            <div id="aa-parent-results" class="person-search-results"></div>
+            <div class="form-hint" id="aa-parent-display">No parent selected</div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>First Name *</label><input type="text" id="aa-first"></div>
+            <div class="form-group"><label>Last Name</label><input type="text" id="aa-last"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Birthday</label><input type="date" id="aa-birthday"></div>
+            <div class="form-group"><label>Cell</label><input type="text" id="aa-cell"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Email</label><input type="email" id="aa-email"></div>
+            <div class="form-group"><label>Phone</label><input type="tel" id="aa-phone"></div>
+          </div>
+          <fieldset>
+            <legend>Address</legend>
+            <div class="form-group"><label>Street</label><input type="text" id="aa-address"></div>
+            <div class="form-row">
+              <div class="form-group"><label>City</label><input type="text" id="aa-city"></div>
+              <div class="form-group form-group-sm"><label>State</label><input type="text" id="aa-state" maxlength="2"></div>
+              <div class="form-group form-group-sm"><label>Zip</label><input type="text" id="aa-zip"></div>
+            </div>
+          </fieldset>
+          <div class="form-actions">
+            <button type="button" id="aa-submit">Add Family Member</button>
+            <span class="status-msg" id="aa-status" hidden></span>
+          </div>
+        </fieldset>
+      </form>
+    </div>`;
+}
+
+function setupAdminAddForm(container) {
+  // Parent search
+  const parentSearch = container.querySelector('#aa-parent-search');
+  if (!parentSearch) return;
+
+  parentSearch.addEventListener('input', () => {
+    const query = parentSearch.value.toLowerCase().trim();
+    const resultsEl = document.getElementById('aa-parent-results');
+    if (!query || query.length < 2) { resultsEl.innerHTML = ''; return; }
+    const matches = allPeople
+      .filter(p => !p.deceased && (`${p.firstName} ${p.lastName}`).toLowerCase().includes(query))
+      .slice(0, 10);
+    resultsEl.innerHTML = matches.map(p =>
+      `<div class="person-search-item" data-pid="${p.personId}">${esc(p.firstName)} ${esc(p.lastName || '')} <span class="form-hint">${esc(p.branch || '')}</span></div>`
+    ).join('');
+    resultsEl.querySelectorAll('.person-search-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const pid = Number(item.dataset.pid);
+        const person = peopleById[pid];
+        document.getElementById('aa-parent-id').value = pid;
+        document.getElementById('aa-parent-display').textContent =
+          `Parent: ${person.firstName} ${person.lastName || ''}`;
+        document.getElementById('aa-last').value = person.lastName || '';
+        parentSearch.value = '';
+        resultsEl.innerHTML = '';
+      });
+    });
+  });
+
+  // Submit
+  container.querySelector('#aa-submit').addEventListener('click', async () => {
+    const parentId = document.getElementById('aa-parent-id').value;
+    const firstName = document.getElementById('aa-first').value.trim();
+    if (!parentId) { alert('Please select a parent first.'); return; }
+    if (!firstName) { alert('First name is required.'); return; }
+
+    const btn = document.getElementById('aa-submit');
+    const status = document.getElementById('aa-status');
+    btn.disabled = true;
+    btn.textContent = 'Adding...';
+    status.hidden = true;
+
+    try {
+      const result = await addPerson(sessionToken, {
+        parentId,
+        firstName,
+        lastName: document.getElementById('aa-last').value.trim(),
+        birthday: document.getElementById('aa-birthday').value,
+        cell: document.getElementById('aa-cell').value.trim(),
+        email: document.getElementById('aa-email').value.trim(),
+        phone: document.getElementById('aa-phone').value.trim(),
+        address: document.getElementById('aa-address').value.trim(),
+        city: document.getElementById('aa-city').value.trim(),
+        state: document.getElementById('aa-state').value.trim(),
+        zip: document.getElementById('aa-zip').value.trim(),
+      });
+
+      status.textContent = result.message || 'Added!';
+      status.className = 'status-msg success';
+      status.hidden = false;
+
+      // Clear the form
+      ['aa-first','aa-last','aa-birthday','aa-cell','aa-email','aa-phone',
+       'aa-address','aa-city','aa-state','aa-zip'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      document.getElementById('aa-parent-id').value = '';
+      document.getElementById('aa-parent-display').textContent = 'No parent selected';
+
+      // Add to local cache
+      if (result.personId) {
+        const parent = peopleById[parentId];
+        const newPerson = {
+          personId: result.personId,
+          firstName, lastName: document.getElementById('aa-last').value || parent?.lastName || '',
+          parentId: Number(parentId),
+          generation: (parent?.generation || 0) + 1,
+          branch: parent?.branch || '',
+          deceased: false,
+        };
+        allPeople.push(newPerson);
+        peopleById[newPerson.personId] = newPerson;
+      }
+
+      setTimeout(() => { status.hidden = true; }, 4000);
+    } catch (err) {
+      status.textContent = 'Error: ' + err.message;
+      status.className = 'status-msg error';
+      status.hidden = false;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add Family Member';
+    }
+  });
 }
 
 function esc(s) {
