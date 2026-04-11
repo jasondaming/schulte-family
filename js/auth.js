@@ -31,6 +31,7 @@ function saveSession(data) {
     sheetRow: data.sheetRow,
     firstName: data.firstName,
     lastName: data.lastName,
+    isAdmin: !!data.isAdmin,
     timestamp: Date.now(),
   }));
 }

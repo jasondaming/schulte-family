@@ -1,25 +1,52 @@
 /**
- * Profile edit view — edit yourself, your spouse, and your children.
+ * Profile view — edit contact info and manage life events for yourself,
+ * your spouse, and your dependent children.
  */
 
-import { updateProfile } from './api.js';
+import { updateProfile, fetchEvents, addEvent } from './api.js';
 
 let allPeople = [];
 let peopleById = {};
 let sessionToken = null;
 let myPerson = null;
+let eventsByPersonId = {};
 
-export function initProfile(people, session) {
+const EVENT_TYPE_LABELS = {
+  birth:       'Birth',
+  death:       'Death',
+  marriage:    'Marriage',
+  divorce:     'Divorce',
+  adoption:    'Adoption',
+  nameChange:  'Name Change',
+  relocation:  'Relocation / Move',
+  graduation:  'Graduation',
+  other:       'Other',
+};
+
+export async function initProfile(people, session) {
   allPeople = people;
   peopleById = {};
   for (const p of people) peopleById[p.personId] = p;
   sessionToken = session.token;
 
-  myPerson = people.find(p => p.personId == session.personId);
+  myPerson = people.find(p => String(p.personId) === String(session.personId));
   if (!myPerson) {
-    document.getElementById('profile-form').innerHTML =
+    document.getElementById('profile-view').innerHTML =
       '<p class="loading">Could not find your record. Contact the database admin.</p>';
     return;
+  }
+
+  // Load life events for the family
+  try {
+    const result = await fetchEvents(sessionToken);
+    eventsByPersonId = {};
+    for (const ev of (result.events || [])) {
+      const pid = String(ev.personId);
+      if (!eventsByPersonId[pid]) eventsByPersonId[pid] = [];
+      eventsByPersonId[pid].push(ev);
+    }
+  } catch (e) {
+    eventsByPersonId = {};
   }
 
   renderProfileView();
@@ -29,7 +56,7 @@ export function updateProfileData(people, session) {
   allPeople = people;
   peopleById = {};
   for (const p of people) peopleById[p.personId] = p;
-  myPerson = people.find(p => p.personId == session.personId);
+  myPerson = people.find(p => String(p.personId) === String(session.personId));
   if (myPerson) renderProfileView();
 }
 
@@ -37,90 +64,251 @@ function renderProfileView() {
   const container = document.getElementById('profile-view');
   const spouse = myPerson.spouseId ? peopleById[myPerson.spouseId] : null;
 
-  // Find children: people whose parentId is me or my spouse
+  // Dependent children: no own household yet
   const children = allPeople.filter(p => {
     if (p.deceased) return false;
-    return p.parentId == myPerson.personId || (spouse && p.parentId == spouse.personId);
-  }).filter(p => !p.spouseId && !p.address); // Only dependents (no own household)
+    return String(p.parentId) === String(myPerson.personId) ||
+           (spouse && String(p.parentId) === String(spouse.personId));
+  }).filter(p => !p.spouseId && !p.address);
 
   let html = '<div class="view-header"><h2>My Information</h2></div>';
-
-  // My info
-  html += personForm(myPerson, 'self', 'My Contact Info');
-
-  // Spouse info
-  if (spouse) {
-    html += personForm(spouse, 'spouse', `${spouse.firstName}'s Contact Info`);
-  }
-
-  // Children
-  for (const child of children) {
-    html += personForm(child, `child-${child.personId}`, `${child.firstName}'s Info`);
-  }
+  html += personSection(myPerson, 'self');
+  if (spouse) html += personSection(spouse, 'spouse');
+  for (const child of children) html += personSection(child, `child-${child.personId}`);
 
   container.innerHTML = html;
 
-  // Attach submit handlers
+  // Attach contact form submit handlers
   container.querySelectorAll('.profile-form').forEach(form => {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const prefix = form.dataset.prefix;
       const personId = Number(form.dataset.personId);
-      await saveChanges(prefix, personId, form);
+      await saveContact(prefix, personId, form);
+    });
+  });
+
+  // Attach event form handlers
+  container.querySelectorAll('.event-add-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const personId = Number(btn.dataset.personId);
+      const prefix = btn.dataset.prefix;
+      toggleEventForm(personId, prefix, btn);
+    });
+  });
+
+  container.querySelectorAll('.event-submit-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const personId = Number(btn.dataset.personId);
+      const prefix = btn.dataset.prefix;
+      await submitEvent(personId, prefix);
+    });
+  });
+
+  // Person-search for linked person field
+  container.querySelectorAll('.linked-person-search').forEach(input => {
+    const prefix = input.dataset.prefix;
+    const resultsEl = document.getElementById(`${prefix}-linked-results`);
+    input.addEventListener('input', () => {
+      showPersonSearch(input.value, prefix, resultsEl);
     });
   });
 }
 
-function personForm(person, prefix, title) {
-  const readonly = prefix === 'self' || prefix === 'spouse' ? '' : '';
+function personSection(person, prefix) {
+  const events = eventsByPersonId[String(person.personId)] || [];
+  const isSpouse = prefix === 'spouse';
+  const isSelf = prefix === 'self';
+  const sectionLabel = isSelf ? 'My Contact Info' : isSpouse
+    ? `${esc(person.firstName)}'s Contact Info`
+    : `${esc(person.firstName)}'s Info`;
+
   return `
-    <form class="profile-form" data-prefix="${prefix}" data-person-id="${person.personId}">
-      <fieldset>
-        <legend>${title}</legend>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Name</label>
-            <input type="text" value="${esc(person.firstName)} ${esc(person.lastName || '')}" readonly class="readonly">
+    <div class="profile-section">
+      <form class="profile-form" data-prefix="${prefix}" data-person-id="${person.personId}">
+        <fieldset>
+          <legend>${sectionLabel}</legend>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" value="${esc(person.firstName)} ${esc(person.lastName || '')}" readonly class="readonly">
+            </div>
           </div>
+          <div class="form-group">
+            <label>Street Address</label>
+            <input type="text" id="${prefix}-address" value="${esc(person.address)}">
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>City</label><input type="text" id="${prefix}-city" value="${esc(person.city)}"></div>
+            <div class="form-group form-group-sm"><label>State</label><input type="text" id="${prefix}-state" value="${esc(person.state)}" maxlength="2"></div>
+            <div class="form-group form-group-sm"><label>Zip</label><input type="text" id="${prefix}-zip" value="${esc(person.zip)}"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Phone</label><input type="tel" id="${prefix}-phone" value="${esc(person.phone)}"></div>
+            <div class="form-group"><label>Cell</label><input type="text" id="${prefix}-cell" value="${esc(person.cell)}"></div>
+          </div>
+          <div class="form-group"><label>Email</label><input type="email" id="${prefix}-email" value="${esc(person.email)}"></div>
+          <div class="form-actions">
+            <button type="submit">Save ${esc(person.firstName)}'s Info</button>
+            <span class="status-msg" id="${prefix}-status" hidden></span>
+          </div>
+        </fieldset>
+      </form>
+
+      <div class="life-events-block">
+        <div class="life-events-header">
+          <h4>Life Events — ${esc(person.firstName)}</h4>
+          <button class="event-add-btn btn-secondary" data-person-id="${person.personId}" data-prefix="${prefix}">+ Add Event</button>
         </div>
-        <div class="form-group">
-          <label>Street Address</label>
-          <input type="text" id="${prefix}-address" value="${esc(person.address)}">
+        <div id="${prefix}-event-form" class="event-form" hidden>
+          ${eventFormHtml(prefix, person.personId)}
         </div>
-        <div class="form-row">
-          <div class="form-group"><label>City</label><input type="text" id="${prefix}-city" value="${esc(person.city)}"></div>
-          <div class="form-group form-group-sm"><label>State</label><input type="text" id="${prefix}-state" value="${esc(person.state)}" maxlength="2"></div>
-          <div class="form-group form-group-sm"><label>Zip</label><input type="text" id="${prefix}-zip" value="${esc(person.zip)}"></div>
+        <div id="${prefix}-events-list" class="events-list">
+          ${eventsListHtml(events)}
         </div>
-        <div class="form-row">
-          <div class="form-group"><label>Phone</label><input type="tel" id="${prefix}-phone" value="${esc(person.phone)}"></div>
-          <div class="form-group"><label>Cell</label><input type="text" id="${prefix}-cell" value="${esc(person.cell)}"></div>
-        </div>
-        <div class="form-group"><label>Email</label><input type="email" id="${prefix}-email" value="${esc(person.email)}"></div>
-        <div class="form-actions">
-          <button type="submit">Save Changes</button>
-          <span class="status-msg" id="${prefix}-status" hidden></span>
-        </div>
-      </fieldset>
-    </form>`;
+      </div>
+    </div>`;
 }
 
-async function saveChanges(prefix, personId, form) {
+function eventFormHtml(prefix, personId) {
+  const typeOptions = Object.entries(EVENT_TYPE_LABELS)
+    .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  return `
+    <div class="event-form-fields">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Event Type</label>
+          <select id="${prefix}-event-type">${typeOptions}</select>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="${prefix}-event-date">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="${prefix}-event-desc" placeholder="Brief description of this event...">
+      </div>
+      <div class="form-group">
+        <label>Linked Person <span class="form-hint">(optional — for marriages, births, etc.)</span></label>
+        <input type="text" id="${prefix}-linked-input" class="linked-person-search" data-prefix="${prefix}" placeholder="Type a name to search...">
+        <input type="hidden" id="${prefix}-linked-id">
+        <div id="${prefix}-linked-results" class="linked-results"></div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="event-submit-btn" data-person-id="${personId}" data-prefix="${prefix}">Save Event</button>
+        <span class="status-msg" id="${prefix}-event-status" hidden></span>
+      </div>
+    </div>`;
+}
+
+function eventsListHtml(events) {
+  if (!events.length) return '<p class="events-empty">No life events recorded yet.</p>';
+  return events.map(ev => {
+    const label = EVENT_TYPE_LABELS[ev.eventType] || ev.eventType;
+    const date = ev.eventDate ? formatDisplayDate(ev.eventDate) : '';
+    return `
+      <div class="event-item">
+        <span class="event-badge event-${ev.eventType}">${label}</span>
+        ${date ? `<span class="event-date">${date}</span>` : ''}
+        ${ev.description ? `<span class="event-desc">${esc(ev.description)}</span>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function toggleEventForm(personId, prefix, btn) {
+  const form = document.getElementById(`${prefix}-event-form`);
+  const isHidden = form.hidden;
+  form.hidden = !isHidden;
+  btn.textContent = isHidden ? '— Cancel' : '+ Add Event';
+}
+
+async function submitEvent(personId, prefix) {
+  const btn = document.querySelector(`.event-submit-btn[data-prefix="${prefix}"]`);
+  const status = document.getElementById(`${prefix}-event-status`);
+  const eventType = document.getElementById(`${prefix}-event-type`).value;
+  const eventDate = document.getElementById(`${prefix}-event-date`).value;
+  const description = document.getElementById(`${prefix}-event-desc`).value.trim();
+  const linkedPersonId = document.getElementById(`${prefix}-linked-id`).value || null;
+
+  if (!eventType) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  status.hidden = true;
+
+  try {
+    const result = await addEvent(sessionToken, {
+      personId,
+      eventType,
+      eventDate: eventDate || null,
+      description: description || null,
+      linkedPersonId: linkedPersonId || null,
+    });
+
+    // Add to local cache and re-render the list
+    const newEvent = {
+      eventId: result.eventId,
+      personId,
+      eventType,
+      eventDate: eventDate || '',
+      description: description || '',
+      linkedPersonId,
+      recordedAt: new Date().toISOString(),
+    };
+    const pid = String(personId);
+    if (!eventsByPersonId[pid]) eventsByPersonId[pid] = [];
+    eventsByPersonId[pid].unshift(newEvent);
+
+    // Re-render just this person's events list
+    const listEl = document.getElementById(`${prefix}-events-list`);
+    if (listEl) listEl.innerHTML = eventsListHtml(eventsByPersonId[pid]);
+
+    // Reset form
+    document.getElementById(`${prefix}-event-date`).value = '';
+    document.getElementById(`${prefix}-event-desc`).value = '';
+    document.getElementById(`${prefix}-linked-id`).value = '';
+    document.getElementById(`${prefix}-linked-input`).value = '';
+
+    status.textContent = 'Event saved!';
+    status.className = 'status-msg success';
+    status.hidden = false;
+    setTimeout(() => { status.hidden = true; }, 3000);
+
+    // Close the form
+    const form = document.getElementById(`${prefix}-event-form`);
+    if (form) form.hidden = true;
+    const addBtn = document.querySelector(`.event-add-btn[data-prefix="${prefix}"]`);
+    if (addBtn) addBtn.textContent = '+ Add Event';
+  } catch (err) {
+    status.textContent = `Error: ${err.message}`;
+    status.className = 'status-msg error';
+    status.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Event';
+  }
+}
+
+async function saveContact(prefix, personId, form) {
   const btn = form.querySelector('button[type="submit"]');
   const status = form.querySelector('.status-msg');
   btn.disabled = true;
   btn.textContent = 'Saving...';
   status.hidden = true;
 
+  // Scope reads to the specific form to prevent cross-form data leakage
+  const get = id => { const el = form.querySelector('#' + id); return el ? el.value : ''; };
+
   const fields = {
     personId,
-    address: document.getElementById(`${prefix}-address`).value,
-    city: document.getElementById(`${prefix}-city`).value,
-    state: document.getElementById(`${prefix}-state`).value,
-    zip: document.getElementById(`${prefix}-zip`).value,
-    phone: document.getElementById(`${prefix}-phone`).value,
-    cell: document.getElementById(`${prefix}-cell`).value,
-    email: document.getElementById(`${prefix}-email`).value,
+    address: get(`${prefix}-address`),
+    city:    get(`${prefix}-city`),
+    state:   get(`${prefix}-state`),
+    zip:     get(`${prefix}-zip`),
+    phone:   get(`${prefix}-phone`),
+    cell:    get(`${prefix}-cell`),
+    email:   get(`${prefix}-email`),
   };
 
   try {
@@ -129,7 +317,7 @@ async function saveChanges(prefix, personId, form) {
     status.className = 'status-msg success';
     status.hidden = false;
 
-    // Update local data
+    // Update local cache
     const person = peopleById[personId];
     if (person) Object.assign(person, fields);
 
@@ -140,8 +328,47 @@ async function saveChanges(prefix, personId, form) {
     status.hidden = false;
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Save Changes';
+    const person = peopleById[personId];
+    btn.textContent = person ? `Save ${person.firstName}'s Info` : 'Save Changes';
   }
+}
+
+function showPersonSearch(query, prefix, resultsEl) {
+  const q = (query || '').toLowerCase().trim();
+  if (!q) { resultsEl.innerHTML = ''; return; }
+
+  const matches = allPeople.filter(p => {
+    const name = `${p.firstName} ${p.lastName}`.toLowerCase();
+    return name.includes(q) && !p.deceased;
+  }).slice(0, 8);
+
+  if (!matches.length) {
+    resultsEl.innerHTML = '<p class="search-empty">No matches.</p>';
+    return;
+  }
+
+  resultsEl.innerHTML = matches.map(p => `
+    <div class="linked-result" data-person-id="${p.personId}" data-name="${esc(p.firstName)} ${esc(p.lastName)}">
+      ${esc(p.firstName)} ${esc(p.lastName)}
+      ${p.city ? `<span class="search-result-info">${esc(p.city)}, ${esc(p.state)}</span>` : ''}
+    </div>`).join('');
+
+  resultsEl.querySelectorAll('.linked-result').forEach(el => {
+    el.addEventListener('click', () => {
+      document.getElementById(`${prefix}-linked-id`).value = el.dataset.personId;
+      document.getElementById(`${prefix}-linked-input`).value = el.dataset.name;
+      resultsEl.innerHTML = '';
+    });
+  });
+}
+
+function formatDisplayDate(isoDate) {
+  if (!isoDate) return '';
+  try {
+    const [y, m, d] = isoDate.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[parseInt(m) - 1]} ${parseInt(d)}, ${y}`;
+  } catch { return isoDate; }
 }
 
 function esc(s) {

@@ -7,6 +7,7 @@ import { initLogin, getSession, logout } from './auth.js';
 import { initDirectory, updateDirectory } from './directory.js';
 import { initTree, updateTree } from './tree.js';
 import { initProfile, updateProfileData } from './profile.js';
+import { initAdmin } from './admin.js';
 
 let people = [];
 let session = null;
@@ -51,7 +52,6 @@ async function showApp() {
 }
 
 async function loadData() {
-  // Show loading spinner in the active view
   const activeView = document.querySelector('.view.active');
   if (activeView) {
     activeView.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading family data...</p></div>';
@@ -66,10 +66,17 @@ async function loadData() {
     const result = await fetchFamilies(session.token);
     people = result.people || [];
 
-    restoreViews();
+    // Restore view shells that need static HTML scaffolding
+    restoreTreeView();
+
     initDirectory(people);
     initTree(people);
-    initProfile(people, session);
+    await initProfile(people, session);
+
+    // Admin panel — only for admin users
+    if (session.isAdmin) {
+      await initAdmin(people, session);
+    }
   } catch (err) {
     console.error('Failed to load data:', err);
     const view = document.querySelector('.view.active');
@@ -79,22 +86,7 @@ async function loadData() {
   }
 }
 
-function restoreViews() {
-  const dirView = document.getElementById('directory-view');
-  if (dirView && !dirView.querySelector('.view-header')) {
-    dirView.innerHTML = `
-      <div class="view-header">
-        <h2>Family Directory</h2>
-        <input type="text" id="search-input" placeholder="Search by name, city, state...">
-      </div>
-      <div class="directory-filters">
-        <button class="filter-btn active" data-filter="all">All</button>
-        <button class="filter-btn" data-filter="branch">By Branch</button>
-        <button class="filter-btn" data-filter="upcoming">Upcoming Birthdays</button>
-      </div>
-      <div id="directory-list" class="card-grid"></div>`;
-  }
-
+function restoreTreeView() {
   const treeView = document.getElementById('tree-view');
   if (treeView && !treeView.querySelector('.view-header')) {
     treeView.innerHTML = `
@@ -107,37 +99,6 @@ function restoreViews() {
         </div>
       </div>
       <div id="tree-container"></div>`;
-  }
-
-  const profView = document.getElementById('profile-view');
-  if (profView && !profView.querySelector('.view-header')) {
-    profView.innerHTML = `
-      <div class="view-header"><h2>My Information</h2></div>
-      <form id="profile-form" class="profile-form">
-        <div class="form-row">
-          <div class="form-group"><label>First Name</label><input type="text" id="prof-names" readonly class="readonly"></div>
-          <div class="form-group"><label>Last Name</label><input type="text" id="prof-last" readonly class="readonly"></div>
-        </div>
-        <fieldset><legend>Address</legend>
-          <div class="form-group"><label>Street Address</label><input type="text" id="prof-address"></div>
-          <div class="form-row">
-            <div class="form-group"><label>City</label><input type="text" id="prof-city"></div>
-            <div class="form-group form-group-sm"><label>State</label><input type="text" id="prof-state" maxlength="2"></div>
-            <div class="form-group form-group-sm"><label>Zip</label><input type="text" id="prof-zip"></div>
-          </div>
-        </fieldset>
-        <fieldset><legend>Contact</legend>
-          <div class="form-row">
-            <div class="form-group"><label>Home Phone</label><input type="tel" id="prof-home-phone"></div>
-            <div class="form-group"><label>Cell Phone</label><input type="text" id="prof-cell"></div>
-          </div>
-          <div class="form-group"><label>Email</label><input type="email" id="prof-email"></div>
-        </fieldset>
-        <div class="form-actions">
-          <button type="submit" id="prof-save-btn">Save Changes</button>
-          <span id="prof-status" class="status-msg" hidden></span>
-        </div>
-      </form>`;
   }
 }
 
@@ -164,10 +125,21 @@ function showSetupInstructions() {
 // === Navigation ===
 
 function setupNav() {
+  // Show admin nav link for admin users
+  if (session && session.isAdmin) {
+    const adminLink = document.querySelector('.nav-admin');
+    if (adminLink) adminLink.style.display = '';
+  }
+
   const links = document.querySelectorAll('.nav-link');
   const views = document.querySelectorAll('.view');
 
   function navigate(viewName) {
+    // Non-admins can't access admin view
+    if (viewName === 'admin' && !(session && session.isAdmin)) {
+      viewName = 'directory';
+    }
+
     links.forEach(l => l.classList.toggle('active', l.dataset.view === viewName));
     views.forEach(v => v.classList.toggle('active', v.id === `${viewName}-view`));
   }
