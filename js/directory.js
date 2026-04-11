@@ -92,12 +92,19 @@ function buildHouseholds() {
   const households = [];
 
   for (const p of allPeople) {
-    if (seen.has(p.personId) || p.deceased) continue;
+    if (seen.has(p.personId)) continue;
+    // Skip deceased people who have no living spouse (they'll show via their spouse's card)
+    if (p.deceased) {
+      const spouse = p.spouseId ? peopleById[p.spouseId] : null;
+      if (!spouse || spouse.deceased) continue; // both deceased or no spouse — skip
+      // Has a living spouse — they'll be shown on the spouse's card
+      continue;
+    }
     seen.add(p.personId);
 
     const members = [p];
-    // Add spouse if exists and not deceased
-    if (p.spouseId && peopleById[p.spouseId] && !peopleById[p.spouseId].deceased) {
+    // Add spouse (including deceased — they're still part of the family)
+    if (p.spouseId && peopleById[p.spouseId]) {
       const spouse = peopleById[p.spouseId];
       members.push(spouse);
       seen.add(spouse.personId);
@@ -208,12 +215,14 @@ function householdCard(h) {
   const primary = h.members[0];
   const spouse = h.members[1];
 
-  // Build display name
+  // Build display name (mark deceased with dagger)
   let displayName = '';
+  const pName = primary.firstName + (primary.deceased ? ' \u2020' : '');
   if (spouse) {
-    displayName = `${primary.firstName} & ${spouse.firstName} ${primary.lastName || spouse.lastName || ''}`;
+    const sName = spouse.firstName + (spouse.deceased ? ' \u2020' : '');
+    displayName = `${pName} & ${sName} ${primary.lastName || spouse.lastName || ''}`;
   } else {
-    displayName = `${primary.firstName} ${primary.lastName || ''}`;
+    displayName = `${pName} ${primary.lastName || ''}`;
   }
 
   let html = `<div class="family-card${hasBirthdaySoon(h) ? ' birthday-soon' : ''}">`;
