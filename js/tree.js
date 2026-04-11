@@ -26,18 +26,24 @@ const BRANCH_PALETTE = [
   '#8b4a6b', // mauve
 ];
 
+// Dismiss tooltips when navigating away from the tree view
+window.addEventListener('hashchange', dismissTooltip);
+
 export function initTree(people) {
   allPeople = people;
   peopleById = {};
   for (const p of people) peopleById[p.personId] = p;
   treeRoot = buildTree();
 
-  // Default: root + Gen 1 expanded
+  // Default: root + Gen 1 + Gen 2 (the 12 and their children visible)
   expandedNodes.clear();
   if (treeRoot) {
     expandedNodes.add(treeRoot.id);
     for (const child of treeRoot.children) {
       expandedNodes.add(child.id);
+      for (const grandchild of child.children) {
+        expandedNodes.add(grandchild.id);
+      }
     }
   }
 
@@ -67,7 +73,10 @@ function setupControls() {
     expandedNodes.clear();
     if (treeRoot) {
       expandedNodes.add(treeRoot.id);
-      for (const c of treeRoot.children) expandedNodes.add(c.id);
+      for (const c of treeRoot.children) {
+        expandedNodes.add(c.id);
+        for (const gc of c.children) expandedNodes.add(gc.id);
+      }
     }
     renderTree();
   };
@@ -120,6 +129,11 @@ function renderTree() {
     return;
   }
 
+  // Preserve scroll position across re-renders
+  const scrollEl = container.querySelector('.tree-scroll');
+  const savedScrollLeft = scrollEl ? scrollEl.scrollLeft : 0;
+  const savedScrollTop = scrollEl ? scrollEl.scrollTop : 0;
+
   container.innerHTML = `
     <div class="tree-scroll">
       <div class="tree-wrap">
@@ -128,6 +142,13 @@ function renderTree() {
         </ul>
       </div>
     </div>`;
+
+  // Restore scroll position
+  const newScrollEl = container.querySelector('.tree-scroll');
+  if (newScrollEl) {
+    newScrollEl.scrollLeft = savedScrollLeft;
+    newScrollEl.scrollTop = savedScrollTop;
+  }
 
   // Toggle expand/collapse
   container.querySelectorAll('.tc-toggle').forEach(btn => {
@@ -152,8 +173,12 @@ function renderTree() {
     });
   });
 
-  // Close tooltip when clicking outside
-  document.addEventListener('click', dismissTooltip, { once: true });
+  // Close tooltip when clicking outside or scrolling
+  // Use a named handler to avoid accumulating listeners
+  document.removeEventListener('click', dismissTooltip);
+  document.addEventListener('click', dismissTooltip);
+  const scrollArea = container.querySelector('.tree-scroll');
+  if (scrollArea) scrollArea.addEventListener('scroll', dismissTooltip);
 }
 
 function renderNode(node, depth, branchIdx) {
