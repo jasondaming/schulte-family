@@ -155,18 +155,22 @@ function renderTree() {
   // Click card to show quick-info tooltip
   container.querySelectorAll('.tc').forEach(card => {
     card.addEventListener('click', e => {
+      e.stopPropagation(); // Don't let it bubble to the dismiss handler
       if (e.target.classList.contains('tc-toggle') || e.target.closest('.tc-toggle')) return;
       const nodeId = Number(card.dataset.nodeId);
       showCardTooltip(card, nodeId);
     });
   });
 
-  // Close tooltip when clicking outside or scrolling
-  // Use a named handler to avoid accumulating listeners
+  // Close tooltip when clicking outside a card
   document.removeEventListener('click', dismissTooltip);
   document.addEventListener('click', dismissTooltip);
+
+  // Enable click-drag panning on the scroll area
   const scrollArea = container.querySelector('.tree-scroll');
-  if (scrollArea) scrollArea.addEventListener('scroll', dismissTooltip);
+  if (scrollArea) {
+    setupDragPan(scrollArea);
+  }
 }
 
 function renderNode(node, depth, branchIdx) {
@@ -261,16 +265,16 @@ function showCardTooltip(cardEl, nodeId) {
 
   document.body.appendChild(tip);
 
-  // Position near the card
+  // Position near the card (fixed positioning = viewport coordinates)
   const rect = cardEl.getBoundingClientRect();
   const tipW = 260;
-  let left = rect.left + window.scrollX + rect.width / 2 - tipW / 2;
-  let top  = rect.bottom + window.scrollY + 8;
+  let left = rect.left + rect.width / 2 - tipW / 2;
+  let top  = rect.bottom + 8;
 
   // Keep within viewport
   left = Math.max(8, Math.min(left, window.innerWidth - tipW - 8));
-  if (top + 200 > window.innerHeight + window.scrollY) {
-    top = rect.top + window.scrollY - 8;
+  if (top + 200 > window.innerHeight) {
+    top = rect.top - 8;
     tip.style.transform = 'translateY(-100%)';
   }
 
@@ -291,6 +295,68 @@ function findNode(node, id) {
     if (found) return found;
   }
   return null;
+}
+
+// === Click-drag panning ===
+
+function setupDragPan(scrollEl) {
+  let isDragging = false;
+  let startX, startY, scrollLeft, scrollTop;
+
+  scrollEl.style.cursor = 'grab';
+
+  scrollEl.addEventListener('mousedown', e => {
+    // Only pan on left-click directly on the scroll area or tree background
+    if (e.button !== 0) return;
+    if (e.target.closest('.tc')) return; // Don't pan when clicking cards
+
+    isDragging = true;
+    scrollEl.style.cursor = 'grabbing';
+    startX = e.clientX;
+    startY = e.clientY;
+    scrollLeft = scrollEl.scrollLeft;
+    scrollTop = scrollEl.scrollTop;
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    scrollEl.scrollLeft = scrollLeft - dx;
+    scrollEl.scrollTop = scrollTop - dy;
+    // Dismiss tooltip while dragging
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dismissTooltip();
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      scrollEl.style.cursor = 'grab';
+    }
+  });
+
+  // Touch support for mobile
+  scrollEl.addEventListener('touchstart', e => {
+    if (e.target.closest('.tc')) return;
+    if (e.touches.length !== 1) return;
+    isDragging = true;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    scrollLeft = scrollEl.scrollLeft;
+    scrollTop = scrollEl.scrollTop;
+  }, { passive: true });
+
+  scrollEl.addEventListener('touchmove', e => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    scrollEl.scrollLeft = scrollLeft - dx;
+    scrollEl.scrollTop = scrollTop - dy;
+    dismissTooltip();
+  }, { passive: true });
+
+  scrollEl.addEventListener('touchend', () => { isDragging = false; });
 }
 
 // === Helpers ===

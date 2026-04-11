@@ -368,7 +368,7 @@ nav {
 
 /* Tree tooltip on click — appended to body, positioned via JS */
 .tree-tooltip {
-  position: absolute;
+  position: fixed;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -377,7 +377,6 @@ nav {
   z-index: 500;
   font-size: 0.85rem;
   max-width: 260px;
-  pointer-events: none;
 }
 
 /* SVG lines */
@@ -833,9 +832,14 @@ nav {
 /* === Top-Down Card Tree === */
 
 .tree-scroll {
-  overflow-x: auto;
+  overflow: auto;
   padding: 1.5rem 0.5rem 2rem;
+  max-height: 80vh;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
 }
+.tree-scroll:active { cursor: grabbing; }
 
 .tree-wrap {
   display: inline-block;
