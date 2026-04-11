@@ -157,11 +157,19 @@ function renderUpcomingBirthdays(container) {
   container.innerHTML = html;
 }
 
+/** Parse a YYYY-MM-DD string without timezone shift. */
+function parseDate(dateStr) {
+  if (!dateStr) return null;
+  // Append T12:00:00 so noon UTC — no timezone can shift it to a different day
+  const d = new Date(dateStr + 'T12:00:00');
+  return isNaN(d) ? null : d;
+}
+
 function getUpcomingAge(dateStr) {
   if (!dateStr) return null;
   try {
-    const bd = new Date(dateStr);
-    if (isNaN(bd)) return null;
+    const bd = parseDate(dateStr);
+    if (!bd) return null;
     const today = new Date();
     let age = today.getFullYear() - bd.getFullYear();
     const thisYearBd = new Date(today.getFullYear(), bd.getMonth(), bd.getDate());
@@ -283,8 +291,8 @@ function hasBirthdaySoon(h) {
 function daysUntilBirthday(dateStr) {
   if (!dateStr) return null;
   try {
-    const d = new Date(dateStr);
-    if (isNaN(d)) return null;
+    const d = parseDate(dateStr);
+    if (!d) return null;
     const today = new Date();
     const thisYear = new Date(today.getFullYear(), d.getMonth(), d.getDate());
     if (thisYear < today) thisYear.setFullYear(today.getFullYear() + 1);
@@ -295,8 +303,8 @@ function daysUntilBirthday(dateStr) {
 function fmtBday(dateStr) {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr);
-    if (isNaN(d)) return dateStr;
+    const d = parseDate(dateStr);
+    if (!d) return dateStr;
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } catch { return dateStr; }
 }
