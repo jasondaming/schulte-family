@@ -68,6 +68,16 @@ export async function removePerson(token, personId) {
 }
 
 /**
+ * Detach a spouse (death or divorce). Clears SpouseID, may remove married-in spouse.
+ * @param {string} reason - 'death' or 'divorce'
+ * @param {number} spousePersonId - the person being detached
+ * @param {string} deathDate - optional, YYYY-MM-DD (for death)
+ */
+export async function detachSpouse(token, reason, spousePersonId, deathDate = '') {
+  return apiPost({ action: 'detachSpouse', token, reason, spousePersonId, deathDate });
+}
+
+/**
  * Fetch life events.
  * @param {string} token
  * @param {number|null} personId - if null, returns all family events

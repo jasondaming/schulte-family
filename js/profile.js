@@ -3,7 +3,7 @@
  * your spouse, and your dependent children.
  */
 
-import { updateProfile, fetchEvents, addEvent, addPerson, removePerson } from './api.js';
+import { updateProfile, fetchEvents, addEvent, addPerson, removePerson, detachSpouse } from './api.js';
 
 let allPeople = [];
 let peopleById = {};
@@ -115,6 +115,42 @@ function renderProfileView() {
     });
   });
 
+  // Detach spouse (death / divorce)
+  container.querySelectorAll('.detach-spouse-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const personId = Number(btn.dataset.personId);
+      const name = btn.dataset.name;
+      const reason = btn.dataset.reason;
+
+      let deathDate = '';
+      if (reason === 'death') {
+        deathDate = prompt(`When did ${name} pass away? (YYYY-MM-DD)`, new Date().toISOString().split('T')[0]);
+        if (deathDate === null) return; // cancelled
+        if (!confirm(`Record ${name}'s death? This will mark them as deceased and remove them from the active directory if they have no children listed.`)) return;
+      } else {
+        if (!confirm(`Record divorce from ${name}? This will unlink them and remove them from the active directory if they have no children listed.`)) return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Processing...';
+      try {
+        const result = await detachSpouse(sessionToken, reason, personId, deathDate);
+        alert(result.message);
+        // Reload
+        const { fetchFamilies } = await import('./api.js');
+        const freshData = await fetchFamilies(sessionToken);
+        allPeople = freshData.people || [];
+        peopleById = {};
+        for (const p of allPeople) peopleById[p.personId] = p;
+        renderProfileView();
+      } catch (err) {
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = reason === 'death' ? 'Record Death' : 'Record Divorce';
+      }
+    });
+  });
+
   // Add Child form
   const addChildBtn = container.querySelector('#add-child-submit');
   if (addChildBtn) {
@@ -158,6 +194,12 @@ function personSection(person, prefix) {
   const removeBtn = isChild
     ? ` <button class="remove-child-btn btn-danger-sm" data-person-id="${person.personId}" data-name="${esc(person.firstName)} ${esc(person.lastName || '')}">Remove</button>`
     : '';
+  const spouseActions = isSpouse
+    ? `<div class="spouse-actions">
+        <button class="btn-danger-sm detach-spouse-btn" data-person-id="${person.personId}" data-name="${esc(person.firstName)}" data-reason="death">Record Death</button>
+        <button class="btn-danger-sm detach-spouse-btn" data-person-id="${person.personId}" data-name="${esc(person.firstName)}" data-reason="divorce">Record Divorce</button>
+       </div>`
+    : '';
 
   return `
     <div class="profile-section">
@@ -190,6 +232,7 @@ function personSection(person, prefix) {
           </div>
         </fieldset>
       </form>
+      ${spouseActions}
 
       <div class="life-events-block">
         <div class="life-events-header">

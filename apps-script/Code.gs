@@ -125,6 +125,7 @@ function doPost(e) {
       case 'update':            return jsonResponse(handleUpdate(body));
       case 'addPerson':         return jsonResponse(handleAddPerson(body));
       case 'removePerson':      return jsonResponse(handleRemovePerson(body));
+      case 'detachSpouse':      return jsonResponse(handleDetachSpouse(body));
       case 'addEvent':          return jsonResponse(handleAddEvent(body));
       case 'signupFood':        return jsonResponse(handleSignupFood(body));
       case 'removeSignup':      return jsonResponse(handleRemoveSignup(body));
@@ -496,6 +497,136 @@ function handleRemovePerson(body) {
   sheet.deleteRow(targetSheetRow);
 
   return { success: true, message: targetName + ' has been removed.' };
+}
+
+// === DETACH SPOUSE (death or divorce) ===
+// Clears the SpouseID link between two people.
+// For death: marks the departing person as deceased.
+// If the departing person is married-in (no ParentID) and has no children,
+// they are removed from the directory. Otherwise they stay as inactive/deceased.
+
+function handleDetachSpouse(body) {
+  var mySheetRow = verifyToken(body.token);
+  if (!mySheetRow) return { error: 'Invalid or expired session.' };
+
+  var reason = body.reason; // 'death' or 'divorce'
+  if (reason !== 'death' && reason !== 'divorce') return { error: 'Reason must be "death" or "divorce".' };
+
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  var data = sheet.getDataRange().getValues();
+
+  var myRow = data[mySheetRow - 1];
+  var myPersonId = String(myRow[COL.PERSON_ID - 1]);
+  var mySpouseId = myRow[COL.SPOUSE_ID - 1] ? String(myRow[COL.SPOUSE_ID - 1]) : null;
+  var myFirstName = str(myRow[COL.FIRST_NAME - 1]);
+  var myLastName = str(myRow[COL.LAST_NAME - 1]);
+  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
+
+  // Determine who is being detached
+  var spousePersonId = body.spousePersonId ? String(body.spousePersonId) : mySpouseId;
+  if (!spousePersonId) return { error: 'No spouse to detach.' };
+
+  // Find the spouse row
+  var spouseSheetRow = null;
+  var spouseRow = null;
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][COL.PERSON_ID - 1]) === spousePersonId) {
+      spouseSheetRow = i + 1;
+      spouseRow = data[i];
+      break;
+    }
+  }
+  if (!spouseSheetRow) return { error: 'Spouse not found.' };
+
+  var spouseFirstName = str(spouseRow[COL.FIRST_NAME - 1]);
+  var spouseLastName = str(spouseRow[COL.LAST_NAME - 1]);
+  var spouseName = spouseFirstName + ' ' + spouseLastName;
+  var spouseParentId = spouseRow[COL.PARENT_ID - 1];
+
+  // Authorization: must be the spouse's partner or admin
+  var partnerId = String(spouseRow[COL.SPOUSE_ID - 1] || '');
+  if (!isAdmin && partnerId !== myPersonId) {
+    return { error: 'You can only detach your own spouse.' };
+  }
+
+  // Find the Schulte-line partner's row (the one keeping their spot)
+  var partnerSheetRow = null;
+  for (var j = 1; j < data.length; j++) {
+    if (String(data[j][COL.PERSON_ID - 1]) === partnerId) {
+      partnerSheetRow = j + 1;
+      break;
+    }
+  }
+
+  // 1. Clear SpouseID on both sides
+  if (partnerSheetRow) {
+    sheet.getRange(partnerSheetRow, COL.SPOUSE_ID).setValue('');
+  }
+  sheet.getRange(spouseSheetRow, COL.SPOUSE_ID).setValue('');
+
+  // 2. Check if the departing spouse has children in the database
+  var hasChildren = false;
+  for (var k = 1; k < data.length; k++) {
+    if (String(data[k][COL.PARENT_ID - 1]) === spousePersonId) {
+      hasChildren = true;
+      break;
+    }
+  }
+
+  // 3. Determine if spouse is married-in (no ParentID = not Schulte bloodline)
+  var isMarriedIn = !spouseParentId;
+
+  var message = '';
+
+  if (reason === 'death') {
+    // Mark as deceased
+    sheet.getRange(spouseSheetRow, COL.DECEASED).setValue('Y');
+    if (body.deathDate) {
+      sheet.getRange(spouseSheetRow, COL.DEATH_DATE).setValue(body.deathDate);
+    }
+
+    if (isMarriedIn && !hasChildren) {
+      // Remove entirely — they have no tree connections left
+      sheet.deleteRow(spouseSheetRow);
+      message = spouseName + ' has been marked as deceased and removed from the directory.';
+    } else {
+      message = spouseName + ' has been marked as deceased.';
+    }
+  } else {
+    // Divorce
+    if (isMarriedIn && !hasChildren) {
+      sheet.deleteRow(spouseSheetRow);
+      message = spouseName + ' has been removed from the directory.';
+    } else {
+      // Keep them but unlinked
+      message = spouseName + ' has been unlinked. They remain in the directory.';
+    }
+  }
+
+  // Log to changelog
+  var clSheet = ensureSheet(ss, CHANGELOG_SHEET,
+    ['ChangeID', 'Timestamp', 'ChangedByPersonID', 'ChangedByName',
+     'TargetPersonID', 'TargetName', 'Field', 'OldValue', 'NewValue']);
+  var clId = getLastId(clSheet, CL.CHANGE_ID) + 1;
+  var now = new Date().toISOString();
+  clSheet.appendRow([
+    clId, now, myPersonId, myFirstName + ' ' + myLastName,
+    spousePersonId, spouseName, reason, 'SpouseID=' + partnerId, message,
+  ]);
+
+  // Also record a life event
+  var evSheet = ensureSheet(ss, LIFE_EVENTS_SHEET,
+    ['EventID', 'PersonID', 'EventType', 'EventDate', 'Description',
+     'LinkedPersonID', 'RecordedByPersonID', 'RecordedAt']);
+  var evId = getLastId(evSheet, EV.EVENT_ID) + 1;
+  evSheet.appendRow([
+    evId, spousePersonId, reason, body.deathDate || now.split('T')[0],
+    reason === 'death' ? 'Passed away' : 'Divorce',
+    partnerId, myPersonId, now,
+  ]);
+
+  return { success: true, message: message };
 }
 
 // === LIFE EVENTS ===
