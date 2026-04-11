@@ -4,10 +4,11 @@
 
 import { fetchFamilies, isConfigured } from './api.js';
 import { initLogin, getSession, logout } from './auth.js';
-import { initDirectory, updateDirectory } from './directory.js';
-import { initTree, updateTree } from './tree.js';
-import { initProfile, updateProfileData } from './profile.js';
+import { initDirectory } from './directory.js';
+import { initTree } from './tree.js';
+import { initProfile } from './profile.js';
 import { initAdmin } from './admin.js';
+import { initReunion } from './reunion.js';
 
 let people = [];
 let session = null;
@@ -54,7 +55,7 @@ async function showApp() {
 async function loadData() {
   const activeView = document.querySelector('.view.active');
   if (activeView) {
-    activeView.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading family data...</p></div>';
+    activeView.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading family data…</p></div>';
   }
 
   try {
@@ -66,14 +67,13 @@ async function loadData() {
     const result = await fetchFamilies(session.token);
     people = result.people || [];
 
-    // Restore view shells that need static HTML scaffolding
     restoreTreeView();
 
     initDirectory(people);
     initTree(people);
     await initProfile(people, session);
+    await initReunion(session);
 
-    // Admin panel — only for admin users
     if (session.isAdmin) {
       await initAdmin(people, session);
     }
@@ -93,9 +93,9 @@ function restoreTreeView() {
       <div class="view-header">
         <h2>Family Tree</h2>
         <div class="tree-controls">
-          <button id="tree-zoom-in" title="Expand all">Expand All</button>
-          <button id="tree-zoom-reset" title="Reset">Reset</button>
-          <button id="tree-zoom-out" title="Collapse all">Collapse</button>
+          <button id="tree-zoom-in">Expand All</button>
+          <button id="tree-zoom-reset">Reset</button>
+          <button id="tree-zoom-out">Collapse</button>
         </div>
       </div>
       <div id="tree-container"></div>`;
@@ -125,7 +125,7 @@ function showSetupInstructions() {
 // === Navigation ===
 
 function setupNav() {
-  // Show admin nav link for admin users
+  // Show admin link for admins
   if (session && session.isAdmin) {
     const adminLink = document.querySelector('.nav-admin');
     if (adminLink) adminLink.style.display = '';
@@ -135,17 +135,14 @@ function setupNav() {
   const views = document.querySelectorAll('.view');
 
   function navigate(viewName) {
-    // Non-admins can't access admin view
-    if (viewName === 'admin' && !(session && session.isAdmin)) {
-      viewName = 'directory';
-    }
+    if (viewName === 'admin' && !(session && session.isAdmin)) viewName = 'directory';
 
     links.forEach(l => l.classList.toggle('active', l.dataset.view === viewName));
     views.forEach(v => v.classList.toggle('active', v.id === `${viewName}-view`));
   }
 
   links.forEach(link => {
-    link.addEventListener('click', (e) => {
+    link.addEventListener('click', e => {
       e.preventDefault();
       window.location.hash = link.dataset.view;
       navigate(link.dataset.view);

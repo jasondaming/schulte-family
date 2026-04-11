@@ -81,6 +81,33 @@ export async function fetchChangelog(token) {
   return apiCall('getChangelog', { token });
 }
 
+// === Reunion ===
+
+/** Fetch all reunion content + food signups. */
+export async function fetchReunion(token) {
+  return apiCall('getReunion', { token });
+}
+
+/** Sign up to bring a dish. */
+export async function signupFood(token, dish, category, notes) {
+  return apiPost({ action: 'signupFood', token, dish, category, notes });
+}
+
+/** Remove a food signup (own or admin). */
+export async function removeSignup(token, signupId) {
+  return apiPost({ action: 'removeSignup', token, signupId });
+}
+
+/** Admin: add or edit a reunion content item (schedule, info, bring list). */
+export async function upsertReunionItem(token, item) {
+  return apiPost({ action: 'upsertReunionItem', token, ...item });
+}
+
+/** Admin: delete a reunion content item. */
+export async function deleteReunionItem(token, id) {
+  return apiPost({ action: 'deleteReunionItem', token, id });
+}
+
 /** Check if the API is configured. */
 export function isConfigured() {
   return !!SCRIPT_URL;

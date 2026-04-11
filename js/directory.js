@@ -25,6 +25,12 @@ export function initDirectory(people) {
     });
   });
 
+  // Print button
+  const printBtn = document.getElementById('print-directory-btn');
+  if (printBtn) {
+    printBtn.addEventListener('click', () => window.print());
+  }
+
   render();
 }
 

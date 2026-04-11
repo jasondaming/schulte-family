@@ -1,8 +1,10 @@
 /**
- * Family Tree view — interactive collapsible tree.
+ * Family Tree — top-down card-based visual tree.
  *
- * Shows the tree organized by branch. Users can expand/collapse branches
- * to navigate without being overwhelmed by 300+ people at once.
+ * Each node is a card (person/couple). Children are arranged in a row below
+ * their parent, connected by CSS-drawn lines. Branches collapse/expand.
+ *
+ * Layout: nested <ul><li> structure — CSS pseudo-elements draw the connectors.
  */
 
 let allPeople = [];
@@ -10,13 +12,28 @@ let peopleById = {};
 let treeRoot = null;
 let expandedNodes = new Set();
 
+// One distinct color per Gen-1 branch (Schulte siblings)
+const BRANCH_PALETTE = [
+  '#2d5a27', // forest green
+  '#1a6b8a', // ocean blue
+  '#7a3b10', // warm brown
+  '#6b2d8b', // purple
+  '#8b6914', // gold
+  '#1a7a55', // teal
+  '#8b2020', // brick red
+  '#3a5a8b', // slate blue
+  '#4a7a2d', // olive green
+  '#8b4a6b', // mauve
+];
+
 export function initTree(people) {
   allPeople = people;
   peopleById = {};
   for (const p of people) peopleById[p.personId] = p;
   treeRoot = buildTree();
 
-  // Auto-expand the root and Gen 1
+  // Default: root + Gen 1 expanded
+  expandedNodes.clear();
   if (treeRoot) {
     expandedNodes.add(treeRoot.id);
     for (const child of treeRoot.children) {
@@ -38,41 +55,32 @@ export function updateTree(people) {
 
 function setupControls() {
   document.getElementById('tree-zoom-in').onclick = () => {
-    expandAll();
+    expandAll(treeRoot);
     renderTree();
   };
   document.getElementById('tree-zoom-out').onclick = () => {
-    collapseAll();
+    expandedNodes.clear();
+    if (treeRoot) expandedNodes.add(treeRoot.id);
     renderTree();
   };
   document.getElementById('tree-zoom-reset').onclick = () => {
     expandedNodes.clear();
     if (treeRoot) {
       expandedNodes.add(treeRoot.id);
-      for (const child of treeRoot.children) {
-        expandedNodes.add(child.id);
-      }
+      for (const c of treeRoot.children) expandedNodes.add(c.id);
     }
     renderTree();
   };
 }
 
-function expandAll() {
-  function walk(node) {
-    expandedNodes.add(node.id);
-    for (const c of node.children) walk(c);
-  }
-  if (treeRoot) walk(treeRoot);
+function expandAll(node) {
+  if (!node) return;
+  expandedNodes.add(node.id);
+  for (const c of node.children) expandAll(c);
 }
 
-function collapseAll() {
-  expandedNodes.clear();
-  if (treeRoot) expandedNodes.add(treeRoot.id);
-}
+// === Tree data structure ===
 
-/**
- * Build tree structure. Each node = { id, person, spouse, children: [node...] }
- */
 function buildTree() {
   const roots = allPeople.filter(p => !p.parentId && p.generation === 0);
   const rootPerson = roots.find(p => p.spouseId) || roots[0];
@@ -87,32 +95,24 @@ function buildTree() {
     const spouse = person.spouseId ? peopleById[person.spouseId] : null;
     if (spouse) visited.add(spouse.personId);
 
-    // Find children whose parentId matches this person or spouse
     const childPeople = allPeople.filter(p => {
       if (visited.has(p.personId)) return false;
       return p.parentId == person.personId || (spouse && p.parentId == spouse.personId);
-    });
-
-    childPeople.sort((a, b) => a.personId - b.personId);
-
-    const children = childPeople
-      .map(c => buildNode(c))
-      .filter(Boolean);
+    }).sort((a, b) => a.personId - b.personId);
 
     return {
       id: person.personId,
       person,
       spouse,
-      children,
+      children: childPeople.map(c => buildNode(c)).filter(Boolean),
     };
   }
 
   return buildNode(rootPerson);
 }
 
-/**
- * Render the tree as nested HTML (not SVG) — much more manageable.
- */
+// === Rendering ===
+
 function renderTree() {
   const container = document.getElementById('tree-container');
   if (!treeRoot) {
@@ -120,13 +120,20 @@ function renderTree() {
     return;
   }
 
-  container.innerHTML = `<div class="tree-html">${renderNode(treeRoot, 0)}</div>`;
+  container.innerHTML = `
+    <div class="tree-scroll">
+      <div class="tree-wrap">
+        <ul class="tree-root">
+          ${renderNode(treeRoot, 0, 0)}
+        </ul>
+      </div>
+    </div>`;
 
-  // Attach click handlers for expand/collapse
-  container.querySelectorAll('.tree-toggle').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+  // Toggle expand/collapse
+  container.querySelectorAll('.tc-toggle').forEach(btn => {
+    btn.addEventListener('click', e => {
       e.stopPropagation();
-      const nodeId = Number(btn.dataset.nodeId);
+      const nodeId = Number(btn.closest('.tc').dataset.nodeId);
       if (expandedNodes.has(nodeId)) {
         expandedNodes.delete(nodeId);
       } else {
@@ -135,66 +142,177 @@ function renderTree() {
       renderTree();
     });
   });
+
+  // Click card to show quick-info tooltip
+  container.querySelectorAll('.tc').forEach(card => {
+    card.addEventListener('click', e => {
+      if (e.target.classList.contains('tc-toggle') || e.target.closest('.tc-toggle')) return;
+      const nodeId = Number(card.dataset.nodeId);
+      showCardTooltip(card, nodeId);
+    });
+  });
+
+  // Close tooltip when clicking outside
+  document.addEventListener('click', dismissTooltip, { once: true });
 }
 
-function renderNode(node, depth) {
+function renderNode(node, depth, branchIdx) {
   const p = node.person;
   const s = node.spouse;
   const isExpanded = expandedNodes.has(node.id);
   const hasChildren = node.children.length > 0;
 
-  // Build display name
-  let name;
-  if (s) {
-    const sLastName = s.lastName !== p.lastName ? ` ${s.lastName || ''}` : '';
-    name = `${p.firstName} &amp; ${s.firstName}${sLastName} ${p.lastName || ''}`.trim();
-  } else {
-    name = `${esc(p.firstName)} ${esc(p.lastName || '')}`.trim();
+  // Assign branch color: root uses palette[0], Gen-1 children each get a unique hue
+  const color = depth === 0
+    ? BRANCH_PALETTE[0]
+    : BRANCH_PALETTE[branchIdx % BRANCH_PALETTE.length];
+
+  const initials = getInitials(p, s);
+  const names   = getDisplayNames(p, s);
+  const loc     = p.city ? (p.state ? `${esc(p.city)}, ${esc(p.state)}` : esc(p.city)) : '';
+  const birthYr = p.birthday ? p.birthday.slice(0, 4) : '';
+  const deathYr = p.deathDate ? p.deathDate.slice(0, 4) : '';
+  const genNum  = Math.min(p.generation || 0, 4);
+
+  const decClass    = p.deceased ? ' tc-deceased' : '';
+  const expandClass = isExpanded ? ' tc-open' : '';
+
+  let html = `<li>`;
+
+  // Card
+  html += `<div class="tc tc-gen${genNum}${decClass}${expandClass}" data-node-id="${node.id}" style="--cc:${color}">`;
+  html += `  <div class="tc-av" style="background:${color}">${initials}</div>`;
+  html += `  <div class="tc-nm">${names}</div>`;
+  if (loc) html += `  <div class="tc-lc">${loc}</div>`;
+  if (p.deceased && deathYr) {
+    html += `  <div class="tc-yr">${birthYr ? birthYr + '–' : '†'}${deathYr}</div>`;
+  } else if (birthYr) {
+    html += `  <div class="tc-yr">b.&nbsp;${birthYr}</div>`;
   }
-
-  const location = p.city && p.state ? `${esc(p.city)}, ${esc(p.state)}` : '';
-  const gen = p.generation || 0;
-  const genClass = `gen-${Math.min(gen, 4)}`;
-  const decClass = p.deceased ? ' deceased' : '';
-  const childCount = hasChildren ? ` <span class="child-count">(${countDescendants(node)})</span>` : '';
-
-  let html = `<div class="tree-item ${genClass}${decClass}" style="margin-left: ${depth * 24}px">`;
-
-  // Toggle button
   if (hasChildren) {
-    html += `<button class="tree-toggle" data-node-id="${node.id}">${isExpanded ? '&#9660;' : '&#9654;'}</button>`;
-  } else {
-    html += `<span class="tree-toggle-spacer"></span>`;
+    const desc = countDescendants(node);
+    html += `  <button class="tc-toggle">${isExpanded ? '▲' : `▼&thinsp;${node.children.length}`}</button>`;
   }
-
-  // Node content
-  html += `<div class="tree-item-content">`;
-  html += `<span class="tree-item-name">${name}</span>`;
-  if (hasChildren) html += childCount;
-  if (location) html += ` <span class="tree-item-loc">${location}</span>`;
-  html += `</div>`;
   html += `</div>`;
 
-  // Render children if expanded
+  // Children
   if (hasChildren && isExpanded) {
-    for (const child of node.children) {
-      html += renderNode(child, depth + 1);
+    html += `<ul>`;
+    for (let i = 0; i < node.children.length; i++) {
+      // Pass branch index: at depth 0 each child gets unique color; deeper inherits parent's
+      const childBranchIdx = depth === 0 ? i + 1 : branchIdx;
+      html += renderNode(node.children[i], depth + 1, childBranchIdx);
     }
+    html += `</ul>`;
   }
 
+  html += `</li>`;
   return html;
 }
 
-function countDescendants(node) {
-  let count = 0;
-  for (const child of node.children) {
-    count += 1;
-    if (child.spouse) count += 1;
-    count += countDescendants(child);
+// === Card tooltip (click to see full info) ===
+
+function showCardTooltip(cardEl, nodeId) {
+  dismissTooltip();
+
+  const node = findNode(treeRoot, nodeId);
+  if (!node) return;
+
+  const p = node.person;
+  const s = node.spouse;
+
+  const rows = [];
+  const addRow = (label, val) => val ? rows.push(`<tr><td>${label}</td><td>${esc(val)}</td></tr>`) : null;
+
+  const addPerson = (person, label) => {
+    if (!person) return;
+    rows.push(`<tr class="tt-person-row"><td colspan="2">${label}</td></tr>`);
+    addRow('Phone', person.phone);
+    addRow('Cell',  person.cell);
+    addRow('Email', person.email);
+    if (person.address) addRow('Address', [person.address, person.city, person.state, person.zip].filter(Boolean).join(', '));
+    if (person.birthday) addRow('Birthday', formatDate(person.birthday));
+    if (person.deceased) addRow('Died', formatDate(person.deathDate) || '');
+  };
+
+  addPerson(p, `${p.firstName} ${p.lastName}`);
+  if (s) addPerson(s, `${s.firstName} ${s.lastName}`);
+  if (p.anniversary) addRow('Anniversary', formatDate(p.anniversary));
+
+  if (!rows.length) return;
+
+  const tip = document.createElement('div');
+  tip.className = 'tree-tooltip';
+  tip.innerHTML = `<table class="tt-table">${rows.join('')}</table>`;
+  tip.dataset.tipFor = nodeId;
+
+  document.body.appendChild(tip);
+
+  // Position near the card
+  const rect = cardEl.getBoundingClientRect();
+  const tipW = 260;
+  let left = rect.left + window.scrollX + rect.width / 2 - tipW / 2;
+  let top  = rect.bottom + window.scrollY + 8;
+
+  // Keep within viewport
+  left = Math.max(8, Math.min(left, window.innerWidth - tipW - 8));
+  if (top + 200 > window.innerHeight + window.scrollY) {
+    top = rect.top + window.scrollY - 8;
+    tip.style.transform = 'translateY(-100%)';
   }
-  return count;
+
+  tip.style.left = left + 'px';
+  tip.style.top  = top + 'px';
+  tip.style.width = tipW + 'px';
+}
+
+function dismissTooltip() {
+  document.querySelectorAll('.tree-tooltip').forEach(t => t.remove());
+}
+
+function findNode(node, id) {
+  if (!node) return null;
+  if (node.id == id) return node;
+  for (const c of node.children) {
+    const found = findNode(c, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+// === Helpers ===
+
+function getInitials(p, s) {
+  const pi = (p.firstName || '').charAt(0).toUpperCase();
+  if (!s) return pi;
+  const si = (s.firstName || '').charAt(0).toUpperCase();
+  return pi + si;
+}
+
+function getDisplayNames(p, s) {
+  if (!s) return `${esc(p.firstName)}<br><span class="tc-last">${esc(p.lastName || '')}</span>`;
+  const sameLastName = s.lastName === p.lastName;
+  const coupleNames = `${esc(p.firstName)} &amp; ${esc(s.firstName)}`;
+  return `${coupleNames}<br><span class="tc-last">${esc(p.lastName || '')}</span>`;
+}
+
+function countDescendants(node) {
+  let n = 0;
+  for (const c of node.children) {
+    n += 1 + (c.spouse ? 1 : 0) + countDescendants(c);
+  }
+  return n;
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  try {
+    const [y, m, d] = iso.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[parseInt(m)-1]} ${parseInt(d)}, ${y}`;
+  } catch { return iso; }
 }
 
 function esc(s) {
-  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

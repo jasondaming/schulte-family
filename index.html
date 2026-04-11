@@ -34,6 +34,7 @@
           <a href="#directory" class="nav-link active" data-view="directory">Directory</a>
           <a href="#tree" class="nav-link" data-view="tree">Family Tree</a>
           <a href="#profile" class="nav-link" data-view="profile">My Info</a>
+          <a href="#reunion" class="nav-link nav-reunion" data-view="reunion">🇺🇸 Reunion</a>
           <!-- Admin link — shown only for admin users via JS -->
           <a href="#admin" class="nav-link nav-admin" data-view="admin" style="display:none">Admin</a>
         </div>
@@ -44,9 +45,12 @@
       <div id="directory-view" class="view active">
         <div class="view-header">
           <h2>Family Directory</h2>
-          <input type="text" id="search-input" placeholder="Search by name, city, state...">
+          <div class="dir-header-right">
+            <input type="text" id="search-input" placeholder="Search by name, city, state...">
+            <button id="print-directory-btn" class="btn-secondary print-hide" title="Print directory">🖨️ Print</button>
+          </div>
         </div>
-        <div class="directory-filters">
+        <div class="directory-filters print-hide">
           <button class="filter-btn active" data-filter="all">All</button>
           <button class="filter-btn" data-filter="branch">By Branch</button>
           <button class="filter-btn" data-filter="upcoming">Upcoming Birthdays</button>
@@ -69,6 +73,9 @@
 
       <!-- Profile / My Info View -->
       <div id="profile-view" class="view"></div>
+
+      <!-- Reunion View -->
+      <div id="reunion-view" class="view"></div>
 
       <!-- Admin Panel View -->
       <div id="admin-view" class="view"></div>
