@@ -35,16 +35,10 @@ export function initTree(people) {
   for (const p of people) peopleById[p.personId] = p;
   treeRoot = buildTree();
 
-  // Default: root + Gen 1 + Gen 2 (the 12 and their children visible)
+  // Default: just root expanded (shows Gus & Almeda and the 12)
   expandedNodes.clear();
   if (treeRoot) {
     expandedNodes.add(treeRoot.id);
-    for (const child of treeRoot.children) {
-      expandedNodes.add(child.id);
-      for (const grandchild of child.children) {
-        expandedNodes.add(grandchild.id);
-      }
-    }
   }
 
   setupControls();
@@ -71,13 +65,7 @@ function setupControls() {
   };
   document.getElementById('tree-zoom-reset').onclick = () => {
     expandedNodes.clear();
-    if (treeRoot) {
-      expandedNodes.add(treeRoot.id);
-      for (const c of treeRoot.children) {
-        expandedNodes.add(c.id);
-        for (const gc of c.children) expandedNodes.add(gc.id);
-      }
-    }
+    if (treeRoot) expandedNodes.add(treeRoot.id);
     renderTree();
   };
 }

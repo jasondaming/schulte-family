@@ -54,6 +54,20 @@ export async function updateProfile(token, fields) {
 }
 
 /**
+ * Add a new person (child) to the directory.
+ */
+export async function addPerson(token, personData) {
+  return apiPost({ action: 'addPerson', token, ...personData });
+}
+
+/**
+ * Remove a person from the directory.
+ */
+export async function removePerson(token, personId) {
+  return apiPost({ action: 'removePerson', token, personId });
+}
+
+/**
  * Fetch life events.
  * @param {string} token
  * @param {number|null} personId - if null, returns all family events

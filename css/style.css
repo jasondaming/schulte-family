@@ -521,6 +521,19 @@ nav {
 }
 .btn-secondary:hover { background: var(--primary-light); }
 
+.btn-danger-sm {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  background: none;
+  color: #c0392b;
+  border: 1px solid #c0392b;
+  border-radius: var(--radius);
+  cursor: pointer;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+.btn-danger-sm:hover { background: #c0392b; color: white; }
+
 .event-form { margin-bottom: 0.75rem; }
 .event-form-fields {
   background: var(--bg);

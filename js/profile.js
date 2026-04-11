@@ -3,7 +3,7 @@
  * your spouse, and your dependent children.
  */
 
-import { updateProfile, fetchEvents, addEvent } from './api.js';
+import { updateProfile, fetchEvents, addEvent, addPerson, removePerson } from './api.js';
 
 let allPeople = [];
 let peopleById = {};
@@ -75,6 +75,7 @@ function renderProfileView() {
   html += personSection(myPerson, 'self');
   if (spouse) html += personSection(spouse, 'spouse');
   for (const child of children) html += personSection(child, `child-${child.personId}`);
+  html += addChildFormHtml(myPerson);
 
   container.innerHTML = html;
 
@@ -113,21 +114,56 @@ function renderProfileView() {
       showPersonSearch(input.value, prefix, resultsEl);
     });
   });
+
+  // Add Child form
+  const addChildBtn = container.querySelector('#add-child-submit');
+  if (addChildBtn) {
+    addChildBtn.addEventListener('click', handleAddChild);
+  }
+
+  // Remove child buttons
+  container.querySelectorAll('.remove-child-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const personId = Number(btn.dataset.personId);
+      const name = btn.dataset.name;
+      if (!confirm(`Remove ${name} from the family directory?`)) return;
+      btn.disabled = true;
+      btn.textContent = 'Removing...';
+      try {
+        await removePerson(sessionToken, personId);
+        // Reload
+        const { fetchFamilies } = await import('./api.js');
+        const result = await fetchFamilies(sessionToken);
+        allPeople = result.people || [];
+        peopleById = {};
+        for (const p of allPeople) peopleById[p.personId] = p;
+        renderProfileView();
+      } catch (err) {
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Remove';
+      }
+    });
+  });
 }
 
 function personSection(person, prefix) {
   const events = eventsByPersonId[String(person.personId)] || [];
   const isSpouse = prefix === 'spouse';
   const isSelf = prefix === 'self';
+  const isChild = prefix.startsWith('child-');
   const sectionLabel = isSelf ? 'My Contact Info' : isSpouse
     ? `${esc(person.firstName)}'s Contact Info`
     : `${esc(person.firstName)}'s Info`;
+  const removeBtn = isChild
+    ? ` <button class="remove-child-btn btn-danger-sm" data-person-id="${person.personId}" data-name="${esc(person.firstName)} ${esc(person.lastName || '')}">Remove</button>`
+    : '';
 
   return `
     <div class="profile-section">
       <form class="profile-form" data-prefix="${prefix}" data-person-id="${person.personId}">
         <fieldset>
-          <legend>${sectionLabel}</legend>
+          <legend>${sectionLabel}${removeBtn}</legend>
           <div class="form-row">
             <div class="form-group">
               <label>Name</label>
@@ -369,6 +405,67 @@ function formatDisplayDate(isoDate) {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return `${months[parseInt(m) - 1]} ${parseInt(d)}, ${y}`;
   } catch { return isoDate; }
+}
+
+function addChildFormHtml(parent) {
+  return `
+    <div class="profile-section">
+      <fieldset>
+        <legend>Add a Family Member</legend>
+        <div class="form-row">
+          <div class="form-group"><label>First Name *</label><input type="text" id="new-child-first" required></div>
+          <div class="form-group"><label>Last Name</label><input type="text" id="new-child-last" value="${esc(parent.lastName || '')}"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Birthday</label><input type="date" id="new-child-birthday"></div>
+          <div class="form-group"><label>Cell</label><input type="text" id="new-child-cell"></div>
+        </div>
+        <div class="form-group"><label>Email</label><input type="email" id="new-child-email"></div>
+        <div class="form-actions">
+          <button type="button" id="add-child-submit">Add Family Member</button>
+          <span class="status-msg" id="add-child-status" hidden></span>
+        </div>
+      </fieldset>
+    </div>`;
+}
+
+async function handleAddChild() {
+  const btn = document.getElementById('add-child-submit');
+  const status = document.getElementById('add-child-status');
+  const firstName = document.getElementById('new-child-first').value.trim();
+  if (!firstName) { alert('First name is required.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+  status.hidden = true;
+
+  try {
+    const result = await addPerson(sessionToken, {
+      firstName,
+      lastName: document.getElementById('new-child-last').value.trim(),
+      birthday: document.getElementById('new-child-birthday').value,
+      cell: document.getElementById('new-child-cell').value.trim(),
+      email: document.getElementById('new-child-email').value.trim(),
+    });
+
+    status.textContent = result.message || 'Added!';
+    status.className = 'status-msg success';
+    status.hidden = false;
+
+    // Reload data to show the new person
+    const { fetchFamilies } = await import('./api.js');
+    const freshData = await fetchFamilies(sessionToken);
+    allPeople = freshData.people || [];
+    peopleById = {};
+    for (const p of allPeople) peopleById[p.personId] = p;
+    renderProfileView();
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+    status.className = 'status-msg error';
+    status.hidden = false;
+    btn.disabled = false;
+    btn.textContent = 'Add Family Member';
+  }
 }
 
 function esc(s) {

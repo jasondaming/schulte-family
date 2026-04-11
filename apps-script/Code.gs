@@ -123,6 +123,8 @@ function doPost(e) {
     const body = JSON.parse(e.postData.contents);
     switch (body.action) {
       case 'update':            return jsonResponse(handleUpdate(body));
+      case 'addPerson':         return jsonResponse(handleAddPerson(body));
+      case 'removePerson':      return jsonResponse(handleRemovePerson(body));
       case 'addEvent':          return jsonResponse(handleAddEvent(body));
       case 'signupFood':        return jsonResponse(handleSignupFood(body));
       case 'removeSignup':      return jsonResponse(handleRemoveSignup(body));
@@ -347,6 +349,153 @@ function handleUpdate(body) {
   }
 
   return { success: true, fieldsChanged: changedFields.length };
+}
+
+// === ADD / REMOVE PERSON ===
+// Users can add children under themselves. Admins can add anyone.
+
+function handleAddPerson(body) {
+  var mySheetRow = verifyToken(body.token);
+  if (!mySheetRow) return { error: 'Invalid or expired session.' };
+  if (!body.firstName || !body.firstName.trim()) return { error: 'First name is required.' };
+
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  var data = sheet.getDataRange().getValues();
+
+  var myRow = data[mySheetRow - 1];
+  var myPersonId = String(myRow[COL.PERSON_ID - 1]);
+  var mySpouseId = myRow[COL.SPOUSE_ID - 1] ? String(myRow[COL.SPOUSE_ID - 1]) : null;
+  var myFirstName = str(myRow[COL.FIRST_NAME - 1]);
+  var myLastName = str(myRow[COL.LAST_NAME - 1]);
+  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
+
+  // Determine parent: defaults to the logged-in user
+  var parentId = body.parentId ? String(body.parentId) : myPersonId;
+
+  // Authorization: can only add children under self/spouse, or admin can add anywhere
+  if (!isAdmin) {
+    if (parentId !== myPersonId && parentId !== mySpouseId) {
+      return { error: 'You can only add children under yourself or your spouse.' };
+    }
+  }
+
+  // Find parent's info for branch/generation
+  var parentGen = 0;
+  var parentBranch = '';
+  var parentLastName = '';
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][COL.PERSON_ID - 1]) === parentId) {
+      parentGen = parseInt(data[i][COL.GENERATION - 1]) || 0;
+      parentBranch = str(data[i][COL.BRANCH - 1]);
+      parentLastName = str(data[i][COL.LAST_NAME - 1]);
+      break;
+    }
+  }
+
+  // Next PersonID
+  var maxId = 0;
+  for (var j = 1; j < data.length; j++) {
+    var pid = parseInt(data[j][COL.PERSON_ID - 1]) || 0;
+    if (pid > maxId) maxId = pid;
+  }
+  var newPersonId = maxId + 1;
+
+  // Build new row (19 columns + IsAdmin = 20 columns)
+  var newRow = [];
+  for (var c = 0; c < 20; c++) newRow.push('');
+  newRow[COL.PERSON_ID - 1]  = newPersonId;
+  newRow[COL.FIRST_NAME - 1] = body.firstName.trim();
+  newRow[COL.LAST_NAME - 1]  = (body.lastName || parentLastName).trim();
+  newRow[COL.BIRTHDAY - 1]   = body.birthday || '';
+  newRow[COL.PARENT_ID - 1]  = parseInt(parentId);
+  newRow[COL.GENERATION - 1] = parentGen + 1;
+  newRow[COL.BRANCH - 1]     = parentBranch;
+  if (body.phone) newRow[COL.PHONE - 1] = body.phone;
+  if (body.cell)  newRow[COL.CELL - 1]  = body.cell;
+  if (body.email) newRow[COL.EMAIL - 1] = body.email;
+
+  sheet.appendRow(newRow);
+
+  // Log to changelog
+  var clSheet = ensureSheet(ss, CHANGELOG_SHEET,
+    ['ChangeID', 'Timestamp', 'ChangedByPersonID', 'ChangedByName',
+     'TargetPersonID', 'TargetName', 'Field', 'OldValue', 'NewValue']);
+  var clId = getLastId(clSheet, CL.CHANGE_ID) + 1;
+  var now = new Date().toISOString();
+  clSheet.appendRow([
+    clId, now, myPersonId, myFirstName + ' ' + myLastName,
+    newPersonId, body.firstName.trim() + ' ' + (body.lastName || parentLastName).trim(),
+    'add_person', '', 'Added new family member',
+  ]);
+
+  return {
+    success: true,
+    personId: newPersonId,
+    message: body.firstName.trim() + ' has been added to the family directory.',
+  };
+}
+
+function handleRemovePerson(body) {
+  var mySheetRow = verifyToken(body.token);
+  if (!mySheetRow) return { error: 'Invalid or expired session.' };
+  if (!body.personId) return { error: 'personId is required.' };
+
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  var data = sheet.getDataRange().getValues();
+
+  var myRow = data[mySheetRow - 1];
+  var myPersonId = String(myRow[COL.PERSON_ID - 1]);
+  var mySpouseId = myRow[COL.SPOUSE_ID - 1] ? String(myRow[COL.SPOUSE_ID - 1]) : null;
+  var isAdmin = str(myRow[COL.IS_ADMIN - 1]).toUpperCase() === 'Y';
+
+  var targetPersonId = String(body.personId);
+
+  // Find target row
+  var targetSheetRow = null;
+  var targetRow = null;
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][COL.PERSON_ID - 1]) === targetPersonId) {
+      targetSheetRow = i + 1;
+      targetRow = data[i];
+      break;
+    }
+  }
+  if (!targetSheetRow) return { error: 'Person not found.' };
+
+  // Authorization: can only remove own children (or admin can remove anyone)
+  var targetParentId = String(targetRow[COL.PARENT_ID - 1] || '');
+  if (!isAdmin) {
+    if (targetParentId !== myPersonId && targetParentId !== mySpouseId) {
+      return { error: 'You can only remove your own children.' };
+    }
+    // Don't allow removing someone who has their own children in the database
+    for (var j = 1; j < data.length; j++) {
+      if (String(data[j][COL.PARENT_ID - 1]) === targetPersonId) {
+        return { error: 'Cannot remove someone who has children in the database. Contact an admin.' };
+      }
+    }
+  }
+
+  var targetName = str(targetRow[COL.FIRST_NAME - 1]) + ' ' + str(targetRow[COL.LAST_NAME - 1]);
+
+  // Log before deleting
+  var clSheet = ensureSheet(ss, CHANGELOG_SHEET,
+    ['ChangeID', 'Timestamp', 'ChangedByPersonID', 'ChangedByName',
+     'TargetPersonID', 'TargetName', 'Field', 'OldValue', 'NewValue']);
+  var clId = getLastId(clSheet, CL.CHANGE_ID) + 1;
+  var now = new Date().toISOString();
+  var myFirstName = str(myRow[COL.FIRST_NAME - 1]);
+  var myLastName = str(myRow[COL.LAST_NAME - 1]);
+  clSheet.appendRow([
+    clId, now, myPersonId, myFirstName + ' ' + myLastName,
+    targetPersonId, targetName, 'remove_person', targetName, 'Removed from directory',
+  ]);
+
+  sheet.deleteRow(targetSheetRow);
+
+  return { success: true, message: targetName + ' has been removed.' };
 }
 
 // === LIFE EVENTS ===
