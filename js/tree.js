@@ -45,6 +45,62 @@ export function initTree(people) {
   renderTree();
 }
 
+/**
+ * Navigate to a specific person: expand their ancestor path, render, scroll to their card.
+ * Called from directory view when user clicks "View in Tree".
+ */
+export function navigateToPerson(personId) {
+  if (!treeRoot) return;
+
+  // Find the path from root to this person
+  const path = findPathToNode(treeRoot, personId);
+  if (!path) return; // Person not in tree (e.g., married-in with no node)
+
+  // Expand every ancestor along the path
+  for (const node of path) {
+    expandedNodes.add(node.id);
+  }
+
+  // Switch to tree view
+  window.location.hash = 'tree';
+
+  // Render and scroll to the target card
+  renderTree();
+
+  requestAnimationFrame(() => {
+    const card = document.querySelector(`.tc[data-node-id="${personId}"]`);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      // Brief highlight
+      card.classList.add('tc-highlight');
+      setTimeout(() => card.classList.remove('tc-highlight'), 2000);
+    } else {
+      // Person might be a spouse — find via their partner's node
+      const person = peopleById[personId];
+      if (person && person.spouseId) {
+        const spouseCard = document.querySelector(`.tc[data-node-id="${person.spouseId}"]`);
+        if (spouseCard) {
+          spouseCard.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+          spouseCard.classList.add('tc-highlight');
+          setTimeout(() => spouseCard.classList.remove('tc-highlight'), 2000);
+        }
+      }
+    }
+  });
+}
+
+function findPathToNode(node, targetId) {
+  if (!node) return null;
+  if (node.id == targetId) return [node];
+  // Check if target is this node's spouse
+  if (node.spouse && node.spouse.personId == targetId) return [node];
+  for (const child of node.children) {
+    const childPath = findPathToNode(child, targetId);
+    if (childPath) return [node, ...childPath];
+  }
+  return null;
+}
+
 export function updateTree(people) {
   allPeople = people;
   peopleById = {};

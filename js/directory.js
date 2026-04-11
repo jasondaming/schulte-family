@@ -3,6 +3,8 @@
  * Data is person-centric: one entry per person, linked by SpouseID/ParentID.
  */
 
+import { navigateToPerson } from './tree.js';
+
 let allPeople = [];
 let peopleById = {};
 let currentFilter = 'all';
@@ -71,6 +73,14 @@ function render() {
       ? households.map(h => householdCard(h)).join('')
       : '<p class="loading">No results found.</p>';
   }
+
+  // Attach "View in Tree" handlers
+  container.querySelectorAll('.card-tree-link').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      navigateToPerson(Number(link.dataset.personId));
+    });
+  });
 }
 
 /**
@@ -209,7 +219,10 @@ function householdCard(h) {
   let html = `<div class="family-card${hasBirthdaySoon(h) ? ' birthday-soon' : ''}">`;
   html += `<div class="card-header">`;
   html += `<span class="card-name">${esc(displayName.trim())}</span>`;
+  html += `<span class="card-header-right">`;
+  html += `<a class="card-tree-link" href="#" data-person-id="${primary.personId}" title="View in Family Tree">&#x1f333;</a>`;
   if (h.branch) html += `<span class="card-branch">${esc(h.branch)}</span>`;
+  html += `</span>`;
   html += `</div>`;
 
   // Address (from primary — shared household)
