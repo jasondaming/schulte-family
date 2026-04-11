@@ -555,11 +555,13 @@ function handleDetachSpouse(body) {
     }
   }
 
-  // 1. Clear SpouseID on both sides
-  if (partnerSheetRow) {
-    sheet.getRange(partnerSheetRow, COL.SPOUSE_ID).setValue('');
+  // 1. For divorce: clear SpouseID on both sides. For death: keep the link.
+  if (reason === 'divorce') {
+    if (partnerSheetRow) {
+      sheet.getRange(partnerSheetRow, COL.SPOUSE_ID).setValue('');
+    }
+    sheet.getRange(spouseSheetRow, COL.SPOUSE_ID).setValue('');
   }
-  sheet.getRange(spouseSheetRow, COL.SPOUSE_ID).setValue('');
 
   // 2. Check if the departing spouse has children in the database
   var hasChildren = false;
