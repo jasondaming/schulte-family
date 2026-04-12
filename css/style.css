@@ -879,6 +879,7 @@ nav {
   padding-top: 28px;    /* connector space above cards */
   display: flex;
   justify-content: center;
+  align-items: flex-start; /* Don't stretch <li> to tallest sibling height */
   flex-wrap: nowrap;
   position: relative;
 }
@@ -980,7 +981,6 @@ nav {
   box-shadow: var(--shadow);
   transition: box-shadow 0.15s, transform 0.15s;
   user-select: none;
-  height: fit-content; /* Don't stretch to match tallest sibling */
   /* Color comes from CSS custom property --cc set inline */
   border-color: var(--cc, var(--border));
 }
