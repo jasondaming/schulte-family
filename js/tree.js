@@ -431,9 +431,11 @@ function getInitials(p, s) {
 
 function getDisplayNames(p, s) {
   if (!s) return `${esc(p.firstName)}<br><span class="tc-last">${esc(p.lastName || '')}</span>`;
-  const sameLastName = s.lastName === p.lastName;
-  const coupleNames = `${esc(p.firstName)} &amp; ${esc(s.firstName)}`;
-  return `${coupleNames}<br><span class="tc-last">${esc(p.lastName || '')}</span>`;
+  const sameLast = (s.lastName || '') === (p.lastName || '');
+  if (sameLast || !s.lastName) {
+    return `${esc(p.firstName)} &amp; ${esc(s.firstName)}<br><span class="tc-last">${esc(p.lastName || '')}</span>`;
+  }
+  return `${esc(p.firstName)} ${esc(p.lastName)} &amp;<br>${esc(s.firstName)} <span class="tc-last">${esc(s.lastName)}</span>`;
 }
 
 function countDescendants(node) {

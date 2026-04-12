@@ -255,7 +255,14 @@ function householdCard(h) {
   }
   let displayName = '';
   if (spouse) {
-    displayName = `${nameHtml(primary)} &amp; ${nameHtml(spouse)} ${esc(primary.lastName || spouse.lastName || '')}`;
+    const sameLast = (primary.lastName || '') === (spouse.lastName || '');
+    if (sameLast || !spouse.lastName) {
+      // Same last name: "John & Jane Smith"
+      displayName = `${nameHtml(primary)} &amp; ${nameHtml(spouse)} ${esc(primary.lastName || '')}`;
+    } else {
+      // Different last names: "John Smith & Jane Doe"
+      displayName = `${nameHtml(primary)} ${esc(primary.lastName || '')} &amp; ${nameHtml(spouse)} ${esc(spouse.lastName || '')}`;
+    }
   } else {
     displayName = `${nameHtml(primary)} ${esc(primary.lastName || '')}`;
   }
