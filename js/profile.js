@@ -3,7 +3,7 @@
  * your spouse, and your dependent children.
  */
 
-import { updateProfile, fetchEvents, addEvent, addPerson, removePerson, detachSpouse } from './api.js';
+import { updateProfile, fetchEvents, addEvent, addPerson, removePerson, detachSpouse, addSpouse } from './api.js';
 
 let allPeople = [];
 let peopleById = {};
@@ -75,7 +75,11 @@ function renderProfileView() {
 
   let html = '<div class="view-header"><h2>My Information</h2></div>';
   html += personSection(myPerson, 'self');
-  if (spouse) html += personSection(spouse, 'spouse');
+  if (spouse) {
+    html += personSection(spouse, 'spouse');
+  } else {
+    html += addSpouseFormHtml(myPerson);
+  }
   for (const child of children) html += personSection(child, `child-${child.personId}`);
   html += addChildFormHtml(myPerson);
 
@@ -152,6 +156,12 @@ function renderProfileView() {
       }
     });
   });
+
+  // Add Spouse form
+  const addSpouseBtn = container.querySelector('#add-spouse-submit');
+  if (addSpouseBtn) {
+    addSpouseBtn.addEventListener('click', handleAddSpouseSubmit);
+  }
 
   // Add Child form
   const addChildBtn = container.querySelector('#add-child-submit');
@@ -478,6 +488,71 @@ function formatDisplayDate(isoDate) {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return `${months[parseInt(m) - 1]} ${parseInt(d)}, ${y}`;
   } catch { return isoDate; }
+}
+
+function addSpouseFormHtml(person) {
+  return `
+    <div class="profile-section">
+      <form class="profile-form" onsubmit="return false">
+        <fieldset>
+          <legend>Add Spouse</legend>
+          <div class="form-row">
+            <div class="form-group"><label>First Name *</label><input type="text" id="my-spouse-first" required></div>
+            <div class="form-group"><label>Last Name</label><input type="text" id="my-spouse-last" value="${esc(person.lastName || '')}"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Birthday</label><input type="date" id="my-spouse-birthday"></div>
+            <div class="form-group"><label>Cell</label><input type="text" id="my-spouse-cell"></div>
+          </div>
+          <div class="form-group"><label>Email</label><input type="email" id="my-spouse-email"></div>
+          <div class="form-actions">
+            <button type="button" id="add-spouse-submit">Add Spouse</button>
+            <span class="status-msg" id="add-spouse-status" hidden></span>
+          </div>
+        </fieldset>
+      </form>
+    </div>`;
+}
+
+async function handleAddSpouseSubmit() {
+  const firstName = document.getElementById('my-spouse-first').value.trim();
+  if (!firstName) { alert('First name is required.'); return; }
+
+  const btn = document.getElementById('add-spouse-submit');
+  const status = document.getElementById('add-spouse-status');
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+  status.hidden = true;
+
+  try {
+    const result = await addSpouse(sessionToken, {
+      personId: myPerson.personId,
+      firstName,
+      lastName: document.getElementById('my-spouse-last').value.trim(),
+      birthday: document.getElementById('my-spouse-birthday').value,
+      cell: document.getElementById('my-spouse-cell').value.trim(),
+      email: document.getElementById('my-spouse-email').value.trim(),
+    });
+
+    status.textContent = result.message || 'Spouse added!';
+    status.className = 'status-msg success';
+    status.hidden = false;
+
+    // Reload data to show the new spouse
+    const { fetchFamilies } = await import('./api.js');
+    const freshData = await fetchFamilies(sessionToken);
+    allPeople = freshData.people || [];
+    peopleById = {};
+    for (const p of allPeople) peopleById[p.personId] = p;
+    myPerson = peopleById[myPerson.personId];
+    renderProfileView();
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+    status.className = 'status-msg error';
+    status.hidden = false;
+    btn.disabled = false;
+    btn.textContent = 'Add Spouse';
+  }
 }
 
 function addChildFormHtml(parent) {

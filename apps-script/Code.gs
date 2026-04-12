@@ -451,9 +451,13 @@ function handleAddSpouse(body) {
 
   var me = resolveAuth(body.token, data);
   if (!me) return { error: 'Invalid or expired session.' };
-  if (!me.isAdmin) return { error: 'Admin access required.' };
 
   var targetPersonId = String(body.personId);
+
+  // Non-admins can only add a spouse for themselves
+  if (!me.isAdmin && targetPersonId !== me.personId) {
+    return { error: 'You can only add a spouse for yourself.' };
+  }
 
   // Find the existing person
   var targetSheetRow = null;
