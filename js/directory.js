@@ -81,6 +81,37 @@ function render() {
       navigateToPerson(Number(link.dataset.personId));
     });
   });
+
+  // Attach child link handlers — scroll to their card or go to tree
+  container.querySelectorAll('.child-link').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const personId = Number(link.dataset.personId);
+      const person = peopleById[personId];
+      if (!person) return;
+
+      // Find their card in the directory (they have one if they're the primary of a household)
+      const card = container.querySelector(`.family-card .card-tree-link[data-person-id="${personId}"]`);
+      if (card) {
+        const familyCard = card.closest('.family-card');
+        familyCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        familyCard.classList.add('card-highlight');
+        setTimeout(() => familyCard.classList.remove('card-highlight'), 2000);
+      } else if (person.spouseId) {
+        // Try finding via spouse's card
+        const spouseCard = container.querySelector(`.family-card .card-tree-link[data-person-id="${person.spouseId}"]`);
+        if (spouseCard) {
+          const familyCard = spouseCard.closest('.family-card');
+          familyCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          familyCard.classList.add('card-highlight');
+          setTimeout(() => familyCard.classList.remove('card-highlight'), 2000);
+        }
+      } else {
+        // No card in directory — go to tree
+        navigateToPerson(personId);
+      }
+    });
+  });
 }
 
 /**
@@ -110,10 +141,9 @@ function buildHouseholds() {
       seen.add(spouse.personId);
     }
 
-    // Find children (people whose parentId = this person or spouse)
+    // Find ALL children (people whose parentId = this person or spouse)
     const childIds = new Set();
     const children = allPeople.filter(c => {
-      if (c.deceased) return false;
       const isChild = members.some(m => c.parentId == m.personId);
       if (isChild && !childIds.has(c.personId)) {
         childIds.add(c.personId);
@@ -122,14 +152,15 @@ function buildHouseholds() {
       return false;
     });
 
-    // Only include children who don't have their own household (no spouse, no address)
-    const dependentChildren = children.filter(c =>
-      !c.spouseId && !c.address && !c.cell && !c.email
-    );
+    // Sort: living first, then by personId
+    children.sort((a, b) => {
+      if (a.deceased !== b.deceased) return a.deceased ? 1 : -1;
+      return a.personId - b.personId;
+    });
 
     households.push({
       members,
-      children: dependentChildren,
+      children,
       branch: p.branch || (p.spouseId && peopleById[p.spouseId]?.branch) || '',
     });
   }
@@ -287,20 +318,19 @@ function householdCard(h) {
     html += `<div class="card-detail"><span class="label">Anniv</span> ${fmtBday(anniv)}</div>`;
   }
 
-  // Dependent children
+  // Children — all shown, each links to their own card
   if (h.children.length) {
-    const kidStr = h.children.map(c => {
-      let s = c.firstName;
-      if (c.birthday) {
-        const days = daysUntilBirthday(c.birthday);
-        s += ` (${fmtBday(c.birthday)})`;
-        if (days !== null && days <= 30) {
-          s += ` <span class="birthday-badge">${days === 0 ? 'Today!' : `in ${days}d`}</span>`;
-        }
-      }
-      return s;
+    const kidLinks = h.children.map(c => {
+      const name = esc(c.firstName);
+      const deceased = c.deceased ? ' deceased-name' : '';
+      const cross = c.deceased ? ' ✝' : '';
+      // Link: if child has a spouse, they have their own card — scroll to it
+      // Otherwise link to tree view
+      const spouse = c.spouseId ? peopleById[c.spouseId] : null;
+      const displayLast = c.lastName !== (primary.lastName || spouse?.lastName || '') ? ` ${esc(c.lastName)}` : '';
+      return `<a href="#" class="child-link${deceased}" data-person-id="${c.personId}">${name}${displayLast}${cross}</a>`;
     }).join(', ');
-    html += `<div class="card-children"><strong>Children:</strong> ${kidStr}</div>`;
+    html += `<div class="card-children"><strong>Children:</strong> ${kidLinks}</div>`;
   }
 
   html += `</div>`;

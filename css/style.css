@@ -261,6 +261,18 @@ nav {
 /* Deceased name in directory cards */
 .deceased-name { color: var(--text-muted); }
 
+/* Child links in cards */
+.child-link { color: var(--primary); text-decoration: none; font-weight: 500; }
+.child-link:hover { text-decoration: underline; }
+.child-link.deceased-name { font-weight: 400; }
+
+/* Highlight a card when scrolled to */
+.card-highlight { animation: card-pulse 2s ease-out; }
+@keyframes card-pulse {
+  0%   { box-shadow: 0 0 0 4px var(--accent), var(--shadow-lg); }
+  100% { box-shadow: var(--shadow); }
+}
+
 /* Upcoming birthday highlight */
 .birthday-soon { border-left: 3px solid var(--accent); }
 .birthday-badge {
