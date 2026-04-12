@@ -54,39 +54,35 @@ export function navigateToPerson(personId) {
 
   // Find the path from root to this person
   const path = findPathToNode(treeRoot, personId);
-  if (!path) return; // Person not in tree (e.g., married-in with no node)
-
-  // Expand every ancestor along the path
-  for (const node of path) {
-    expandedNodes.add(node.id);
+  if (!path) {
+    // Person might be a spouse — try finding via their partner
+    const person = peopleById[personId];
+    if (person && person.spouseId) {
+      const spousePath = findPathToNode(treeRoot, person.spouseId);
+      if (spousePath) {
+        for (const node of spousePath) expandedNodes.add(node.id);
+        personId = person.spouseId; // scroll to spouse's card instead
+      }
+    }
+  } else {
+    for (const node of path) expandedNodes.add(node.id);
   }
 
   // Switch to tree view
   window.location.hash = 'tree';
 
-  // Render and scroll to the target card
+  // Render the tree and scroll after the view is visible
   renderTree();
 
-  requestAnimationFrame(() => {
+  // Use a longer delay to ensure the view switch has completed
+  setTimeout(() => {
     const card = document.querySelector(`.tc[data-node-id="${personId}"]`);
     if (card) {
       card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-      // Brief highlight
       card.classList.add('tc-highlight');
       setTimeout(() => card.classList.remove('tc-highlight'), 2000);
-    } else {
-      // Person might be a spouse — find via their partner's node
-      const person = peopleById[personId];
-      if (person && person.spouseId) {
-        const spouseCard = document.querySelector(`.tc[data-node-id="${person.spouseId}"]`);
-        if (spouseCard) {
-          spouseCard.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-          spouseCard.classList.add('tc-highlight');
-          setTimeout(() => spouseCard.classList.remove('tc-highlight'), 2000);
-        }
-      }
     }
-  });
+  }, 100);
 }
 
 function findPathToNode(node, targetId) {
