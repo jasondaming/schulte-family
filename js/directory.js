@@ -53,10 +53,14 @@ function render() {
   // Filter
   if (query) {
     households = households.filter(h => {
-      const searchable = h.members.map(m =>
-        [m.firstName, m.lastName, m.city, m.state, m.email, m.cell, m.phone]
+      const memberFields = h.members.map(m =>
+        [m.firstName, m.lastName, m.city, m.state, m.zip, m.email, m.cell, m.phone, m.address, m.branch]
           .filter(Boolean).join(' ')
-      ).join(' ').toLowerCase();
+      ).join(' ');
+      const childFields = h.children.map(c =>
+        [c.firstName, c.lastName].filter(Boolean).join(' ')
+      ).join(' ');
+      const searchable = (memberFields + ' ' + childFields).toLowerCase();
       return searchable.includes(query);
     });
   }

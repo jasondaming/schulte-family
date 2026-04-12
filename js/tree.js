@@ -129,6 +129,51 @@ function setupControls() {
     if (treeRoot) expandedNodes.add(treeRoot.id);
     renderTree();
   };
+
+  // Tree search
+  const searchInput = document.getElementById('tree-search-input');
+  const resultsEl = document.getElementById('tree-search-results');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.toLowerCase().trim();
+      if (!q || q.length < 2) { resultsEl.innerHTML = ''; return; }
+
+      const matches = allPeople.filter(p => {
+        const searchable = [p.firstName, p.lastName, p.city, p.state, p.address, p.zip,
+          p.email, p.cell, p.phone, p.branch].filter(Boolean).join(' ').toLowerCase();
+        return searchable.includes(q);
+      }).slice(0, 10);
+
+      if (!matches.length) {
+        resultsEl.innerHTML = '<div class="tree-search-empty">No results</div>';
+        return;
+      }
+
+      resultsEl.innerHTML = matches.map(p => {
+        const loc = p.city ? (p.state ? `${p.city}, ${p.state}` : p.city) : '';
+        return `<div class="tree-search-item" data-pid="${p.personId}">
+          <span class="tree-search-name">${esc(p.firstName)} ${esc(p.lastName || '')}</span>
+          ${loc ? `<span class="tree-search-loc">${esc(loc)}</span>` : ''}
+        </div>`;
+      }).join('');
+
+      resultsEl.querySelectorAll('.tree-search-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const pid = Number(item.dataset.pid);
+          searchInput.value = '';
+          resultsEl.innerHTML = '';
+          navigateToPerson(pid);
+        });
+      });
+    });
+
+    // Close results on outside click
+    document.addEventListener('click', e => {
+      if (!searchInput.contains(e.target) && !resultsEl.contains(e.target)) {
+        resultsEl.innerHTML = '';
+      }
+    });
+  }
 }
 
 function expandAll(node) {

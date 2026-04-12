@@ -311,6 +311,44 @@ nav {
 }
 .tree-controls button:hover { background: var(--primary-light); }
 
+/* Tree search */
+.tree-header-right { position: relative; }
+.tree-search {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  width: 200px;
+  font-family: var(--font);
+}
+.tree-search:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+.tree-search-results {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 280px;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+}
+.tree-search-results:empty { display: none; }
+.tree-search-item {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+.tree-search-item:hover { background: var(--primary-light); }
+.tree-search-name { font-weight: 600; font-size: 0.9rem; }
+.tree-search-loc { font-size: 0.8rem; color: var(--text-muted); }
+.tree-search-empty { padding: 0.5rem 0.75rem; color: var(--text-muted); font-size: 0.85rem; }
+
 #tree-container {
   width: 100%;
   overflow: auto;

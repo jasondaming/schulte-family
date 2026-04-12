@@ -112,6 +112,10 @@ function restoreViews() {
     treeView.innerHTML = `
       <div class="view-header">
         <h2>Family Tree</h2>
+        <div class="tree-header-right">
+          <input type="text" id="tree-search-input" placeholder="Search tree..." class="tree-search">
+          <div id="tree-search-results" class="tree-search-results"></div>
+        </div>
         <div class="tree-controls">
           <button id="tree-zoom-in">Expand All</button>
           <button id="tree-zoom-reset">Reset</button>
