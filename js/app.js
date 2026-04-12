@@ -102,6 +102,7 @@ function restoreViews() {
         <button class="filter-btn active" data-filter="all">All</button>
         <button class="filter-btn" data-filter="branch">By Branch</button>
         <button class="filter-btn" data-filter="upcoming">Upcoming Birthdays</button>
+        <span class="legend-note">✝ = deceased</span>
       </div>
       <div id="directory-list" class="card-grid"></div>`;
   }

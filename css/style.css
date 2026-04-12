@@ -258,6 +258,8 @@ nav {
   border-bottom: 2px solid var(--primary-light);
 }
 
+.legend-note { font-size: 0.8rem; color: var(--text-muted); margin-left: auto; }
+
 /* Deceased name in directory cards */
 .deceased-name { color: var(--text-muted); }
 
