@@ -3,7 +3,7 @@
  * Only visible to users with isAdmin = true.
  */
 
-import { updateProfile, fetchEvents, addEvent, fetchChangelog, addPerson, removePerson } from './api.js';
+import { updateProfile, fetchEvents, addEvent, fetchChangelog, addPerson, removePerson, addSpouse } from './api.js';
 
 let allPeople = [];
 let peopleById = {};
@@ -165,6 +165,8 @@ function renderPersonEditor() {
         ${person.isAdmin ? '<span class="admin-user-badge">Admin</span>' : ''}
       </div>
 
+      ${renderSpouseSection(person)}
+
       <form class="profile-form admin-edit-form" id="admin-edit-form" data-person-id="${person.personId}">
         <fieldset>
           <legend>Contact Info</legend>
@@ -287,6 +289,9 @@ function renderPersonEditor() {
   document.getElementById('admin-linked-input').addEventListener('input', e => {
     showPersonSearch(e.target.value, 'admin-linked-results', 'admin-linked-id', 'admin-linked-input');
   });
+
+  // Add spouse form
+  setupSpouseForm(person);
 }
 
 async function saveAdminEdit(personId) {
@@ -514,6 +519,99 @@ function formatDisplayDate(isoDate) {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return `${months[parseInt(m) - 1]} ${parseInt(d)}, ${y}`;
   } catch { return isoDate; }
+}
+
+// === Spouse Section (admin) ===
+
+function renderSpouseSection(person) {
+  if (person.spouseId && peopleById[person.spouseId]) {
+    const spouse = peopleById[person.spouseId];
+    return `
+      <div class="admin-spouse-info">
+        <strong>Spouse:</strong> ${esc(spouse.firstName)} ${esc(spouse.lastName || '')}
+        ${spouse.deceased ? '(deceased)' : ''}
+      </div>`;
+  }
+
+  // No spouse — show add form
+  return `
+    <div class="admin-spouse-form" id="admin-spouse-section">
+      <form class="profile-form" onsubmit="return false">
+        <fieldset>
+          <legend>Add Spouse for ${esc(person.firstName)}</legend>
+          <div class="form-row">
+            <div class="form-group"><label>First Name *</label><input type="text" id="spouse-first"></div>
+            <div class="form-group"><label>Last Name</label><input type="text" id="spouse-last" value="${esc(person.lastName || '')}"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Birthday</label><input type="date" id="spouse-birthday"></div>
+            <div class="form-group"><label>Cell</label><input type="text" id="spouse-cell"></div>
+          </div>
+          <div class="form-group"><label>Email</label><input type="email" id="spouse-email"></div>
+          <div class="form-actions">
+            <button type="button" id="spouse-submit">Add Spouse</button>
+            <span class="status-msg" id="spouse-status" hidden></span>
+          </div>
+        </fieldset>
+      </form>
+    </div>`;
+}
+
+function setupSpouseForm(person) {
+  const btn = document.getElementById('spouse-submit');
+  if (!btn) return; // Already has a spouse, no form rendered
+
+  btn.addEventListener('click', async () => {
+    const firstName = document.getElementById('spouse-first').value.trim();
+    if (!firstName) { alert('First name is required.'); return; }
+
+    const status = document.getElementById('spouse-status');
+    btn.disabled = true;
+    btn.textContent = 'Adding...';
+    status.hidden = true;
+
+    try {
+      const result = await addSpouse(sessionToken, {
+        personId: person.personId,
+        firstName,
+        lastName: document.getElementById('spouse-last').value.trim(),
+        birthday: document.getElementById('spouse-birthday').value,
+        cell: document.getElementById('spouse-cell').value.trim(),
+        email: document.getElementById('spouse-email').value.trim(),
+      });
+
+      status.textContent = result.message || 'Spouse added!';
+      status.className = 'status-msg success';
+      status.hidden = false;
+
+      // Update local cache
+      if (result.spousePersonId) {
+        const newSpouse = {
+          personId: result.spousePersonId,
+          firstName,
+          lastName: document.getElementById('spouse-last').value.trim() || person.lastName,
+          spouseId: person.personId,
+          generation: person.generation,
+          branch: person.branch,
+          deceased: false,
+        };
+        allPeople.push(newSpouse);
+        peopleById[newSpouse.personId] = newSpouse;
+        person.spouseId = result.spousePersonId;
+        peopleById[person.personId] = person;
+        selectedPerson = person;
+      }
+
+      // Re-render to show the spouse info instead of the form
+      setTimeout(() => renderPersonEditor(), 1000);
+    } catch (err) {
+      status.textContent = 'Error: ' + err.message;
+      status.className = 'status-msg error';
+      status.hidden = false;
+      btn.disabled = false;
+      btn.textContent = 'Add Spouse';
+    }
+  });
 }
 
 // === Add Person (admin) ===

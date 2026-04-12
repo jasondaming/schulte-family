@@ -124,6 +124,7 @@ function doPost(e) {
     switch (body.action) {
       case 'update':            return jsonResponse(handleUpdate(body));
       case 'addPerson':         return jsonResponse(handleAddPerson(body));
+      case 'addSpouse':         return jsonResponse(handleAddSpouse(body));
       case 'removePerson':      return jsonResponse(handleRemovePerson(body));
       case 'detachSpouse':      return jsonResponse(handleDetachSpouse(body));
       case 'addEvent':          return jsonResponse(handleAddEvent(body));
@@ -433,6 +434,99 @@ function handleAddPerson(body) {
     success: true,
     personId: newPersonId,
     message: body.firstName.trim() + ' has been added to the family directory.',
+  };
+}
+
+// === ADD SPOUSE ===
+// Creates a new person and links them as spouse to an existing person.
+// Admin only. Sets SpouseID on both the new person and the existing person.
+
+function handleAddSpouse(body) {
+  if (!body.firstName || !body.firstName.trim()) return { error: 'First name is required.' };
+  if (!body.personId) return { error: 'personId of existing person is required.' };
+
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  var data = sheet.getDataRange().getValues();
+
+  var me = resolveAuth(body.token, data);
+  if (!me) return { error: 'Invalid or expired session.' };
+  if (!me.isAdmin) return { error: 'Admin access required.' };
+
+  var targetPersonId = String(body.personId);
+
+  // Find the existing person
+  var targetSheetRow = null;
+  var targetRow = null;
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][COL.PERSON_ID - 1]) === targetPersonId) {
+      targetSheetRow = i + 1;
+      targetRow = data[i];
+      break;
+    }
+  }
+  if (!targetSheetRow) return { error: 'Person not found.' };
+
+  // Check they don't already have a spouse
+  if (targetRow[COL.SPOUSE_ID - 1]) {
+    return { error: str(targetRow[COL.FIRST_NAME - 1]) + ' already has a spouse linked.' };
+  }
+
+  // Get next PersonID
+  var maxId = 0;
+  for (var j = 1; j < data.length; j++) {
+    var pid = parseInt(data[j][COL.PERSON_ID - 1]) || 0;
+    if (pid > maxId) maxId = pid;
+  }
+  var newPersonId = maxId + 1;
+
+  // Use existing person's info for defaults
+  var targetGen = parseInt(targetRow[COL.GENERATION - 1]) || 0;
+  var targetBranch = str(targetRow[COL.BRANCH - 1]);
+  var targetLastName = str(targetRow[COL.LAST_NAME - 1]);
+
+  // Build new spouse row
+  var newRow = [];
+  for (var c = 0; c < 20; c++) newRow.push('');
+  newRow[COL.PERSON_ID - 1]  = newPersonId;
+  newRow[COL.FIRST_NAME - 1] = body.firstName.trim();
+  newRow[COL.LAST_NAME - 1]  = (body.lastName || targetLastName).trim();
+  newRow[COL.BIRTHDAY - 1]   = body.birthday || '';
+  newRow[COL.SPOUSE_ID - 1]  = parseInt(targetPersonId); // Link to existing person
+  newRow[COL.GENERATION - 1] = targetGen;
+  newRow[COL.BRANCH - 1]     = targetBranch;
+  // ParentID left blank — married-in spouse
+  if (body.phone)   newRow[COL.PHONE - 1]   = body.phone;
+  if (body.cell)    newRow[COL.CELL - 1]    = body.cell;
+  if (body.email)   newRow[COL.EMAIL - 1]   = body.email;
+  if (body.address) newRow[COL.ADDRESS - 1] = body.address;
+  if (body.city)    newRow[COL.CITY - 1]    = body.city;
+  if (body.state)   newRow[COL.STATE - 1]   = body.state;
+  if (body.zip)     newRow[COL.ZIP - 1]     = body.zip;
+
+  sheet.appendRow(newRow);
+
+  // Link the existing person back to the new spouse
+  sheet.getRange(targetSheetRow, COL.SPOUSE_ID).setValue(newPersonId);
+
+  // Log to changelog
+  var clSheet = ensureSheet(ss, CHANGELOG_SHEET,
+    ['ChangeID', 'Timestamp', 'ChangedByPersonID', 'ChangedByName',
+     'TargetPersonID', 'TargetName', 'Field', 'OldValue', 'NewValue']);
+  var clId = getLastId(clSheet, CL.CHANGE_ID) + 1;
+  var now = new Date().toISOString();
+  var targetName = str(targetRow[COL.FIRST_NAME - 1]) + ' ' + targetLastName;
+  var spouseName = body.firstName.trim() + ' ' + (body.lastName || targetLastName).trim();
+  clSheet.appendRow([
+    clId, now, me.personId, me.firstName + ' ' + me.lastName,
+    newPersonId, spouseName, 'add_spouse',
+    '', 'Added as spouse of ' + targetName,
+  ]);
+
+  return {
+    success: true,
+    spousePersonId: newPersonId,
+    message: spouseName + ' has been added as spouse of ' + targetName + '.',
   };
 }
 

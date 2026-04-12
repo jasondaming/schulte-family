@@ -68,6 +68,13 @@ export async function removePerson(token, personId) {
 }
 
 /**
+ * Add a spouse for an existing person. Creates the new person and links SpouseID both ways.
+ */
+export async function addSpouse(token, data) {
+  return apiPost({ action: 'addSpouse', token, ...data });
+}
+
+/**
  * Detach a spouse (death or divorce). Clears SpouseID, may remove married-in spouse.
  * @param {string} reason - 'death' or 'divorce'
  * @param {number} spousePersonId - the person being detached
