@@ -7,7 +7,7 @@ A private family contact directory and family tree, hosted on GitHub Pages with 
 - **Website** (public GitHub repo) — hosted on GitHub Pages, contains no personal data
 - **Data** (private Google Sheet) — person-centric format, one row per person
 - **Login** — family members sign in with first name + birthday
-- **Edit** — users can update contact info for themselves, their spouse, and their children
+- **Edit** — users can update info for themselves, their spouse, and their children
 - **Admin** — admins can edit anyone, add/remove people, and manage reunion info
 
 ## Data Format
@@ -18,42 +18,30 @@ Every individual has their own row, linked by relationships:
 |-------|---------|
 | PersonID | Unique identifier (immutable) |
 | SpouseID | Links to spouse's PersonID |
-| ParentID | Links to Schulte-bloodline parent's PersonID |
-| Generation | 0=Gus & Almeda, 1=the 12 siblings, 2=their children, etc. |
-| Branch | Which sibling branch (e.g., "Phyllis Daming", "Herb Schulte") |
+| ParentID | Links to bloodline parent's PersonID |
+| Generation | 0=root couple, 1=their children, 2=grandchildren, etc. |
+| Branch | Which top-level sibling branch |
 
 Married-in spouses have blank ParentID — they connect to the tree through SpouseID.
 
 ## Family Structure
 
-The family descends from **Gus & Almeda Schulte** (Generation 0), whose 12 children form the top-level branches:
-
-| ID | Name | Branch |
-|----|------|--------|
-| 0 | Sylvia (& Charlie) Goffinet | Sylvia Goffinet |
-| 1 | Doris Young | Doris Young |
-| 2 | Phyllis (& Carlos) Daming | Phyllis Daming |
-| 3 | Janice (& Bill) Daming | Janice Daming |
-| 3a | Pete Schulte (deceased) | Pete Schulte |
-| 4 | Don & Ann Schulte | Don Schulte |
-| 5 | John & Mary Ann Schulte | John Schulte |
-| 6 | Herb & Peggy Schulte | Herb Schulte |
-| 7 | Kathy & Ronnie Kluemper | Kathy Kluemper |
-| 8 | Connie & Dave Pierce | Connie Pierce |
-| 9 | Cindy & Chuck Painter | Cindy Painter |
-| 10 | Paul Schulte | Paul Schulte |
+Generation 0 is the root couple. Their children (Generation 1) form the top-level branches. Each branch is named after the bloodline sibling. The tree supports 5+ generations with expand/collapse navigation.
 
 ## Features
 
 - **Directory** — searchable contact cards grouped by household, with tap-to-call and tap-to-email
+- **Children links** — all children listed on parent cards, clickable to scroll to their card
 - **Upcoming Birthdays** — sorted list showing name, date, turning age, and days until
 - **Family Tree** — card-based visual tree with expand/collapse, click-drag panning, branch colors, and click-for-details tooltips
 - **Tree navigation** — click the tree icon on any directory card to jump to that person in the tree
-- **Edit Profile** — update contact info for yourself, your spouse, and dependent children
-- **Add/Remove People** — add new children, record death or divorce (removes/unlinks married-in spouses)
+- **Edit Profile** — update name, contact info, birthday, anniversary for yourself, spouse, and children
+- **Add/Remove People** — add children, add spouse, record death or divorce
 - **Life Events** — record births, deaths, marriages, moves, and other milestones
 - **Reunion Page** — event info, schedule, and food signup for family gatherings
-- **Admin Panel** — search/edit any person, add people under any parent, view changelog
+- **Admin Panel** — search/edit any person, add people under any parent, add spouses, view changelog
+- **Deceased handling** — deceased shown with cross (✝) and greyed styling, kept in records
+- **Different last names** — couples with different surnames displayed correctly
 - **Print Directory** — print-friendly layout
 - **Mobile-friendly** — responsive design
 
@@ -67,19 +55,19 @@ The family descends from **Gus & Almeda Schulte** (Generation 0), whose 12 child
 
 ## Setup Guide
 
-### Step 1: Convert the Excel file
+### Step 1: Convert the source data
 
 ```bash
 pip install pandas xlrd
-python tools/convert_to_people.py "path/to/DATABASE, SCHULTE.xls"
+python tools/convert_to_people.py "path/to/source.xls"
 ```
 
-This creates `schulte_people.csv` with all people and relationships pre-linked.
+This creates a CSV with all people and relationships pre-linked.
 
 ### Step 2: Import into Google Sheets
 
 1. Create a new Google Sheet
-2. File > Import > Upload `schulte_people.csv`
+2. File > Import > Upload the CSV
 3. **Rename the tab to "People"**
 4. Add column T header: **IsAdmin** — put "Y" for admin users
 5. Review the data

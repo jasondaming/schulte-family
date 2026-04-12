@@ -1079,6 +1079,9 @@ nav {
   border-style: dashed;
 }
 .tc.tc-deceased .tc-nm { font-style: italic; }
+/* Individual deceased name within a couple card */
+.tc-dec-name { color: var(--text-muted); font-style: italic; }
+.tc-spouse-death { color: var(--text-muted); font-size: 0.65rem; }
 
 /* Generation-based sizing */
 .tc-gen0 .tc-av  { width: 46px; height: 46px; font-size: 1rem; }

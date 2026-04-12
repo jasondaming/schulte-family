@@ -252,7 +252,8 @@ function renderNode(node, depth, branchIdx) {
   const deathYr = p.deathDate ? p.deathDate.slice(0, 4) : '';
   const genNum  = Math.min(p.generation || 0, 4);
 
-  const decClass    = p.deceased ? ' tc-deceased' : '';
+  const bothDeceased = p.deceased && (!s || s.deceased);
+  const decClass    = bothDeceased ? ' tc-deceased' : '';
   const expandClass = isExpanded ? ' tc-open' : '';
 
   let html = `<li>`;
@@ -262,8 +263,17 @@ function renderNode(node, depth, branchIdx) {
   html += `  <div class="tc-av" style="background:${color}">${initials}</div>`;
   html += `  <div class="tc-nm">${names}</div>`;
   if (loc) html += `  <div class="tc-lc">${loc}</div>`;
-  if (p.deceased && deathYr) {
-    html += `  <div class="tc-yr">${birthYr ? birthYr + '–' : '†'}${deathYr}</div>`;
+
+  // Year display — handle couple with mixed deceased status
+  const sDeathYr = s && s.deathDate ? s.deathDate.slice(0, 4) : '';
+  const sBirthYr = s && s.birthday ? s.birthday.slice(0, 4) : '';
+  if (p.deceased && s && s.deceased) {
+    // Both deceased
+    html += `  <div class="tc-yr">${birthYr ? birthYr + '–' : ''}${deathYr || '?'}</div>`;
+  } else if (p.deceased && deathYr) {
+    html += `  <div class="tc-yr">${birthYr ? birthYr + '–' : '✝'}${deathYr}</div>`;
+  } else if (s && s.deceased && sDeathYr) {
+    html += `  <div class="tc-yr">b.&nbsp;${birthYr || '?'} <span class="tc-spouse-death">(${s.firstName} ✝${sDeathYr})</span></div>`;
   } else if (birthYr) {
     html += `  <div class="tc-yr">b.&nbsp;${birthYr}</div>`;
   }
@@ -430,12 +440,14 @@ function getInitials(p, s) {
 }
 
 function getDisplayNames(p, s) {
-  if (!s) return `${esc(p.firstName)}<br><span class="tc-last">${esc(p.lastName || '')}</span>`;
+  const pn = p.deceased ? `<span class="tc-dec-name">${esc(p.firstName)} ✝</span>` : esc(p.firstName);
+  if (!s) return `${pn}<br><span class="tc-last">${esc(p.lastName || '')}</span>`;
+  const sn = s.deceased ? `<span class="tc-dec-name">${esc(s.firstName)} ✝</span>` : esc(s.firstName);
   const sameLast = (s.lastName || '') === (p.lastName || '');
   if (sameLast || !s.lastName) {
-    return `${esc(p.firstName)} &amp; ${esc(s.firstName)}<br><span class="tc-last">${esc(p.lastName || '')}</span>`;
+    return `${pn} &amp; ${sn}<br><span class="tc-last">${esc(p.lastName || '')}</span>`;
   }
-  return `${esc(p.firstName)} ${esc(p.lastName)} &amp;<br>${esc(s.firstName)} <span class="tc-last">${esc(s.lastName)}</span>`;
+  return `${pn} ${esc(p.lastName)} &amp;<br>${sn} <span class="tc-last">${esc(s.lastName)}</span>`;
 }
 
 function countDescendants(node) {
