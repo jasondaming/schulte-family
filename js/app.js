@@ -121,6 +121,7 @@ function restoreViews() {
           <button id="tree-zoom-in">Expand All</button>
           <button id="tree-zoom-reset">Reset</button>
           <button id="tree-zoom-out">Collapse</button>
+          <span class="legend-note">✝ = deceased</span>
         </div>
       </div>
       <div id="tree-container"></div>`;
