@@ -289,15 +289,19 @@ function handleUpdate(body) {
     zip:     COL.ZIP,
   };
 
-  // Identity/admin-only fields
-  var adminFieldMap = {
+  // Personal fields — editable by anyone for their family
+  var personalFieldMap = {
     firstName:   COL.FIRST_NAME,
     lastName:    COL.LAST_NAME,
     birthday:    COL.BIRTHDAY,
     anniversary: COL.ANNIVERSARY,
+    notes:       COL.NOTES,
+  };
+
+  // Admin-only fields
+  var adminFieldMap = {
     deceased:    COL.DECEASED,
     deathDate:   COL.DEATH_DATE,
-    notes:       COL.NOTES,
     isAdmin:     COL.IS_ADMIN,
   };
 
@@ -317,6 +321,9 @@ function handleUpdate(body) {
 
   for (var field in contactFieldMap) {
     applyField(field, contactFieldMap[field], body[field]);
+  }
+  for (var pfield in personalFieldMap) {
+    applyField(pfield, personalFieldMap[pfield], body[pfield]);
   }
   if (isAdmin) {
     for (var afield in adminFieldMap) {

@@ -247,10 +247,8 @@ function personSection(person, prefix) {
         <fieldset>
           <legend>${sectionLabel}${removeBtn}</legend>
           <div class="form-row">
-            <div class="form-group">
-              <label>Name</label>
-              <input type="text" value="${esc(person.firstName)} ${esc(person.lastName || '')}" readonly class="readonly">
-            </div>
+            <div class="form-group"><label>First Name</label><input type="text" id="${prefix}-firstName" value="${esc(person.firstName)}"></div>
+            <div class="form-group"><label>Last Name</label><input type="text" id="${prefix}-lastName" value="${esc(person.lastName || '')}"></div>
           </div>
           <div class="form-group">
             <label>Street Address</label>
@@ -421,6 +419,8 @@ async function saveContact(prefix, personId, form) {
 
   const fields = {
     personId,
+    firstName: get(`${prefix}-firstName`),
+    lastName:  get(`${prefix}-lastName`),
     address: get(`${prefix}-address`),
     city:    get(`${prefix}-city`),
     state:   get(`${prefix}-state`),
