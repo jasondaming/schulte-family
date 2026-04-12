@@ -71,18 +71,27 @@ export function navigateToPerson(personId) {
   // Switch to tree view
   window.location.hash = 'tree';
 
-  // Render the tree and scroll after the view is visible
+  // Render the tree — but don't restore scroll position (we want to scroll to the target)
   renderTree();
 
-  // Use a longer delay to ensure the view switch has completed
+  // Wait for view switch + layout, then scroll the tree-scroll container to the card
   setTimeout(() => {
     const card = document.querySelector(`.tc[data-node-id="${personId}"]`);
-    if (card) {
-      card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-      card.classList.add('tc-highlight');
-      setTimeout(() => card.classList.remove('tc-highlight'), 2000);
+    if (!card) return;
+
+    const scrollEl = document.querySelector('.tree-scroll');
+    if (scrollEl) {
+      // Calculate card position relative to scroll container
+      const cardRect = card.getBoundingClientRect();
+      const scrollRect = scrollEl.getBoundingClientRect();
+      const targetScrollLeft = scrollEl.scrollLeft + cardRect.left - scrollRect.left - scrollRect.width / 2 + cardRect.width / 2;
+      const targetScrollTop = scrollEl.scrollTop + cardRect.top - scrollRect.top - scrollRect.height / 2 + cardRect.height / 2;
+      scrollEl.scrollTo({ left: Math.max(0, targetScrollLeft), top: Math.max(0, targetScrollTop), behavior: 'smooth' });
     }
-  }, 100);
+
+    card.classList.add('tc-highlight');
+    setTimeout(() => card.classList.remove('tc-highlight'), 2000);
+  }, 250);
 }
 
 function findPathToNode(node, targetId) {
