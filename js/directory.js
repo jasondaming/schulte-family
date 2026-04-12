@@ -323,6 +323,13 @@ function householdCard(h) {
     html += `<div class="card-detail"><span class="label">Bday</span> ${bdays.join(' &bull; ')}</div>`;
   }
 
+  // Death dates
+  for (const m of h.members) {
+    if (m.deceased && m.deathDate) {
+      html += `<div class="card-detail"><span class="label">Died</span> <span class="deceased-name">${esc(m.firstName)}: ${fmtBday(m.deathDate)}</span></div>`;
+    }
+  }
+
   // Anniversary
   const anniv = primary.anniversary || spouse?.anniversary;
   if (anniv) {
