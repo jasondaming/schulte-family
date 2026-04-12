@@ -879,7 +879,7 @@ nav {
   padding-top: 28px;    /* connector space above cards */
   display: flex;
   justify-content: center;
-  align-items: flex-start; /* Don't stretch <li> to tallest sibling height */
+  align-items: stretch;
   flex-wrap: nowrap;
   position: relative;
 }
