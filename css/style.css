@@ -258,6 +258,9 @@ nav {
   border-bottom: 2px solid var(--primary-light);
 }
 
+/* Deceased name in directory cards */
+.deceased-name { color: var(--text-muted); }
+
 /* Upcoming birthday highlight */
 .birthday-soon { border-left: 3px solid var(--accent); }
 .birthday-badge {

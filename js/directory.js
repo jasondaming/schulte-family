@@ -215,19 +215,23 @@ function householdCard(h) {
   const primary = h.members[0];
   const spouse = h.members[1];
 
-  // Build display name (mark deceased with dagger)
+  // Build display name (deceased shown greyed with cross)
+  function nameHtml(person) {
+    if (person.deceased) {
+      return `<span class="deceased-name">${esc(person.firstName)} ✝</span>`;
+    }
+    return esc(person.firstName);
+  }
   let displayName = '';
-  const pName = primary.firstName + (primary.deceased ? ' \u2020' : '');
   if (spouse) {
-    const sName = spouse.firstName + (spouse.deceased ? ' \u2020' : '');
-    displayName = `${pName} & ${sName} ${primary.lastName || spouse.lastName || ''}`;
+    displayName = `${nameHtml(primary)} &amp; ${nameHtml(spouse)} ${esc(primary.lastName || spouse.lastName || '')}`;
   } else {
-    displayName = `${pName} ${primary.lastName || ''}`;
+    displayName = `${nameHtml(primary)} ${esc(primary.lastName || '')}`;
   }
 
   let html = `<div class="family-card${hasBirthdaySoon(h) ? ' birthday-soon' : ''}">`;
   html += `<div class="card-header">`;
-  html += `<span class="card-name">${esc(displayName.trim())}</span>`;
+  html += `<span class="card-name">${displayName.trim()}</span>`;
   html += `<span class="card-header-right">`;
   html += `<a class="card-tree-link" href="#" data-person-id="${primary.personId}" title="View in Family Tree">&#x1f333;</a>`;
   if (h.branch) html += `<span class="card-branch">${esc(h.branch)}</span>`;
