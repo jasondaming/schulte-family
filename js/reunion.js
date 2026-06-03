@@ -1,10 +1,11 @@
 /**
- * Reunion page — July 4th Schulte Family Reunion 2026.
+ * Reunion page — 2026 Schulte Family Camporee.
  *
  * Sections:
  *   info     — event title, date, location, welcome note
  *   schedule — timed itinerary items
- *   food     — potluck signup (everyone can add/remove their own)
+ *   meals    — catered/food-truck meal notes and head count info
+ *   food     — optional extra food signup (everyone can add/remove their own)
  *   bring    — what-to-bring list
  *
  * Admins see edit/delete controls on every item.
@@ -23,6 +24,177 @@ let reunionItems = [];   // content managed by admins
 let foodSignups  = [];   // potluck signups from everyone
 
 const FOOD_CATEGORIES = ['Main Dish', 'Side Dish', 'Dessert', 'Drinks', 'Snacks', 'Other'];
+const CAMPOREE_SCHEDULE_PDF = 'CAMPOREE%20SCHEDULE%202026%20-%20Google%20Docs.pdf';
+const VAL_EMAIL = 'vawashburn1979@gmail.com';
+const VAL_PHONE = '502-525-1979';
+const KEVIN_PHONE = '513-885-8851';
+const PAIGE_PHONE = '812-393-0500';
+const PAIGE_EMAIL = 'paigebutterfly@hotmail.com';
+const ANGELA_EMAIL = 'craftycreations2024@outlook.com';
+
+const CAMPOREE_DEFAULTS = {
+  eventTitle: '2026 Schulte Family Camporee',
+  eventDate: 'July 2-5, 2026',
+  eventLocation: "Santa's Cottages",
+  eventAddress: '',
+  welcomeNote: 'The Schulte Standard: four days of family, food, games, music, Mass, and the family picture.',
+};
+
+const CAMPOREE_ACTION_ITEMS = [
+  {
+    title: 'Saturday dinner head count',
+    body: "Email Val Washburn ASAP with your count for Saturday night's catered meal.",
+    links: [{ label: 'Email Val', href: `mailto:${VAL_EMAIL}?subject=Saturday%20Dinner%20Head%20Count` }],
+  },
+  {
+    title: 'Bring cornhole boards',
+    body: 'Extra boards are welcome. If you can bring a set, email or text Val so the activity team knows what will be on site.',
+    links: [
+      { label: 'Email Val', href: `mailto:${VAL_EMAIL}?subject=Cornhole%20Boards` },
+      { label: 'Text Val', href: 'sms:5025251979' },
+    ],
+  },
+  {
+    title: 'Order Camporee gear',
+    body: 'The store closes at 11:59 PM on Sunday, June 7, 2026. Use the 2026 Schulte Camporee Store link from the email.',
+  },
+  {
+    title: 'Golf RSVP',
+    body: 'Text Kevin Schulte by Sunday, June 7, 2026 to reserve your Friday morning golf slot. Include your name.',
+    links: [{ label: 'Text Kevin', href: 'sms:5138858851' }],
+  },
+  {
+    title: 'Paint Party signup',
+    body: 'Pay or email Angela by June 26 with your name and craft choice: HOME, 4THOFJULY, and/or KID.',
+    links: [{ label: 'Email Angela', href: `mailto:${ANGELA_EMAIL}?subject=Camporee%20Paint%20Party` }],
+  },
+  {
+    title: 'Thursday setup help',
+    body: 'Help is needed around 10:00 AM-ish Thursday for the tent, tables, and chairs.',
+  },
+  {
+    title: 'Bring tip cash',
+    body: 'Dinners and the DJ are paid for; please bring cash if you want to tip Thursday and Friday vendors or the Friday DJ.',
+  },
+  {
+    title: 'Add or change an activity',
+    body: 'Reach out to Val if you want to head up an activity or need a date/time change.',
+    links: [{ label: VAL_EMAIL, href: `mailto:${VAL_EMAIL}?subject=Camporee%20Activity` }],
+  },
+];
+
+const CAMPOREE_FEATURED_DETAILS = [
+  {
+    title: 'Golf Outing',
+    meta: 'Friday, July 3 at 7:30 AM',
+    facts: [
+      'Where: Christmas Lake Golf Course.',
+      'Cost: $58.',
+      `RSVP or questions: text Kevin Schulte at ${KEVIN_PHONE} by Sunday, June 7. Include your name.`,
+    ],
+    links: [{ label: 'Text Kevin', href: 'sms:5138858851' }],
+  },
+  {
+    title: 'Paint Party',
+    meta: 'Friday, July 3 at 2:00 PM',
+    facts: [
+      "Where: Santa's Cottages Pavilion.",
+      'Crafts: HOME, 4THOFJULY, and kid craft pack.',
+      'Cost: $30 for Home or July 4th craft; $10 for kid craft pack.',
+      `Payment: Venmo @EppersonAng or email Angela at ${ANGELA_EMAIL} for other payment options.`,
+      'Deadline: June 26.',
+      `Questions: text or email Paige Goffinet at ${PAIGE_PHONE} or ${PAIGE_EMAIL}.`,
+    ],
+    links: [
+      { label: 'Email Angela', href: `mailto:${ANGELA_EMAIL}?subject=Camporee%20Paint%20Party` },
+      { label: 'Text Paige', href: 'sms:8123930500' },
+      { label: 'Email Paige', href: `mailto:${PAIGE_EMAIL}?subject=Camporee%20Paint%20Party` },
+    ],
+  },
+  {
+    title: 'Camporee Gear',
+    meta: 'Store closes Sunday, June 7 at 11:59 PM',
+    facts: [
+      'Options include t-shirts, onesies, tank tops, hoodies, trucker hats, and personalized tumblers.',
+      'Theme: 4th of July / Standard Station, with blue and red choices on some items.',
+      'At checkout, enter your address first; the next step gives the pickup option.',
+      'Delivery: ship to your address or choose Pickup at Reunion.',
+      'Pickup at Reunion: Cabin 22 when you arrive.',
+      'Early pickup: Painter homestead from June 27-30. Anything still at the barn the morning of July 1 goes to Cabin 22.',
+    ],
+  },
+];
+
+const CAMPOREE_MEAL_NOTES = [
+  'Thursday dinner: Oink Smokehouse and Bee\'s Original Dawgs food trucks. Tips appreciated. Desserts: Cindy, Kathy, Connie.',
+  'Friday dinner: Jimador, Taylor Made, and Champ Dawgs food trucks. Tips appreciated. Desserts: Herb, John, Don.',
+  'Saturday dinner: Sanders Catering after Mass with fried chicken, corn, green beans, mashed potatoes, mac and cheese, and rolls. Desserts: Sylvia, Doris, Janice, Phyllis, Paul.',
+  `Saturday catered meal head count goes to Val Washburn at ${VAL_EMAIL}.`,
+];
+
+const CAMPOREE_SCHEDULE = [
+  {
+    day: 'Thursday, July 2',
+    items: [
+      ['10:00 AM-ish', 'Setup help needed for the tent, tables, and chairs.'],
+      ['4:00 PM', 'Check-in begins after 4:00 PM. Instructions were sent by email.'],
+      ['5:30 PM', "Dinner: Oink Smokehouse and Bee's Original Dawgs food trucks. Tips appreciated. Desserts: Cindy, Kathy, Connie."],
+      ['6:30-8:00 PM', 'Board/card games at the pavilion for kids, teens, and the young at heart.'],
+      ['8:00 PM', "Texas Hold 'em (Jon Pierce)."],
+      ['9:00 PM', 'Pool and splash pad close.'],
+    ],
+  },
+  {
+    day: 'Friday, July 3',
+    items: [
+      ['7:30 AM', 'Golf (Kevin Schulte).'],
+      ['8:30 AM-9:00 PM', 'Pool and splash pad open.'],
+      ['9:00 AM', 'Yoga with Mike.'],
+      ['10:30 AM', 'Kid Games (Doris Troth, Nicole Pattison, Jamie DeCarlo).'],
+      ['12:00 PM', 'Teen Games (Doris Troth, Nicole Pattison, Jamie DeCarlo).'],
+      ['2:00 PM', 'Paint Party (Paige Goffinet): Home/July 4th craft, or kid craft pack.'],
+      ['4:00 PM', '15+ Cornhole Tourney - blind draw, single elimination (Mike Goffinet).'],
+      ['5:30 PM', 'Dinner: Jimador, Taylor Made, and Champ Dawgs food trucks. Tips appreciated. Desserts: Herb, John, Don.'],
+      ['6:00-7:00 PM', 'Kids Karaoke.'],
+      ['7:00-9:00 PM', 'Adult Karaoke with DJ. Tips appreciated.'],
+      ['9:00 PM', 'Beer Olympics (Steven Meglio).'],
+    ],
+  },
+  {
+    day: 'Saturday, July 4',
+    items: [
+      ['8:30 AM-9:00 PM', 'Pool open.'],
+      ['10:00 AM-1:00 PM', 'Volleyball (Jason Daming).'],
+      ['12:30-2:30 PM', 'Euchre (Katie Kissel).'],
+      ['3:30 PM', 'Large family picture (Randy Daming). Subject to change due to weather.'],
+      ['4:30 PM', 'Mass (Fr. Ron).'],
+      ['5:30 PM', 'Dinner after Mass provided by Sanders Catering: fried chicken, corn, green beans, mashed potatoes, mac and cheese, and roll.'],
+      ['7:00-9:00 PM', 'Adult Horse Races (Doug Young).'],
+    ],
+  },
+  {
+    day: 'Sunday, July 5',
+    items: [
+      ['11:00 AM', 'Check out by 11:00 AM. Take trash to receptacles and wash dishes. Check out times are strictly enforced. Safe travels home.'],
+    ],
+  },
+];
+
+const CAMPOREE_BRING_ITEMS = [
+  'Cash for food vendor tips and the Friday DJ tip jar.',
+  'Cornhole boards, if you can bring a set. Contact Val first.',
+  'Comfortable clothes for games, pool time, yoga, volleyball, golf, and the family picture.',
+  'Any supplies needed for an activity you are leading.',
+  'Camporee gear, if ordered before the June 7 deadline.',
+];
+
+const CAMPOREE_OTHER_INFO = [
+  "No fireworks are allowed at Santa's Cottages. Holiday World fireworks may be viewable from outside the park, and some community fireworks may be visible nearby.",
+  'Golf carts are allowed for transporting older family members. Kids are not allowed to drive golf carts.',
+  'Train rides are free and offered throughout the weekend.',
+  'Unlimited free soft drinks are available in the store, along with items for purchase and items to rent.',
+  `Questions, head counts, cornhole boards, or activity updates: contact Val Washburn at ${VAL_EMAIL} or ${VAL_PHONE}.`,
+];
 
 export async function initReunion(session) {
   sessionToken    = session.token;
@@ -58,11 +230,11 @@ function render() {
   // Pull well-known info fields by title key
   const get = key => (infoItems.find(i => i.title === key) || {}).body || '';
 
-  const eventTitle    = get('event_title')    || 'Schulte Family Reunion';
-  const eventDate     = get('event_date')     || 'July 4, 2026';
-  const eventLocation = get('event_location') || 'Location TBD';
-  const eventAddress  = get('event_address')  || '';
-  const welcomeNote   = get('welcome_note')   || '';
+  const eventTitle    = camporeeDefault(get('event_title'), CAMPOREE_DEFAULTS.eventTitle, ['Schulte Family Reunion']);
+  const eventDate     = camporeeDefault(get('event_date'), CAMPOREE_DEFAULTS.eventDate, ['July 4, 2026']);
+  const eventLocation = camporeeDefault(get('event_location'), CAMPOREE_DEFAULTS.eventLocation, ['Location TBD']);
+  const eventAddress  = get('event_address') || CAMPOREE_DEFAULTS.eventAddress;
+  const welcomeNote   = get('welcome_note') || CAMPOREE_DEFAULTS.welcomeNote;
 
   container.innerHTML = `
     <!-- Hero -->
@@ -76,20 +248,47 @@ function render() {
           <span class="reunion-loc" id="r-loc">📍 ${esc(eventLocation)}${eventAddress ? ', ' + esc(eventAddress) : ''}</span>
         </div>
         ${welcomeNote ? `<p class="reunion-welcome" id="r-welcome">${esc(welcomeNote)}</p>` : ''}
-        ${isAdmin ? `<button class="btn-secondary reunion-edit-info" id="edit-info-btn">✏️ Edit Event Details</button>` : ''}
+        <div class="reunion-hero-actions">
+          <a class="reunion-hero-link" href="${CAMPOREE_SCHEDULE_PDF}" target="_blank" rel="noopener">View schedule PDF</a>
+          ${isAdmin ? `<button class="btn-secondary reunion-edit-info" id="edit-info-btn">✏️ Edit Event Details</button>` : ''}
+        </div>
       </div>
     </div>
 
     <div class="reunion-body">
+      <section class="reunion-section" id="section-action">
+        <div class="reunion-section-header">
+          <h2>Action Needed</h2>
+        </div>
+        ${renderActionItems()}
+      </section>
+
+      <section class="reunion-section" id="section-featured-details">
+        <div class="reunion-section-header">
+          <h2>Golf, Paint Party, and Gear</h2>
+        </div>
+        ${renderFeaturedDetails()}
+      </section>
+
+      <section class="reunion-section" id="section-meals">
+        <div class="reunion-section-header">
+          <h2>Meals and Head Count</h2>
+        </div>
+        ${renderMealNotes()}
+      </section>
 
       <!-- Schedule -->
       <section class="reunion-section" id="section-schedule">
         <div class="reunion-section-header">
-          <h2>📋 Schedule</h2>
+          <div>
+            <h2>Schedule</h2>
+            <p class="section-subtitle">All times are CST.</p>
+          </div>
           ${isAdmin ? `<button class="btn-secondary" id="add-schedule-btn">+ Add Item</button>` : ''}
         </div>
         <div id="schedule-list" class="schedule-list">
-          ${scheduleItems.length ? scheduleItems.map(renderScheduleItem).join('') : emptyMsg('No schedule items yet.')}
+          ${renderCamporeeSchedule()}
+          ${scheduleItems.length ? renderAdditionalScheduleItems(scheduleItems) : ''}
         </div>
         <div id="schedule-form-area"></div>
       </section>
@@ -97,7 +296,10 @@ function render() {
       <!-- Food Potluck -->
       <section class="reunion-section" id="section-food">
         <div class="reunion-section-header">
-          <h2>🍽️ Potluck Signup</h2>
+          <div>
+            <h2>Extra Food Signup</h2>
+            <p class="section-subtitle">Official dinners are covered; use this only for extras, snacks, or shared items.</p>
+          </div>
           <button class="btn-primary" id="signup-food-btn">I'm Bringing Something!</button>
         </div>
         <div id="food-form-area"></div>
@@ -109,18 +311,128 @@ function render() {
       <!-- What to Bring -->
       <section class="reunion-section" id="section-bring">
         <div class="reunion-section-header">
-          <h2>🎒 What to Bring</h2>
+          <h2>What to Bring</h2>
           ${isAdmin ? `<button class="btn-secondary" id="add-bring-btn">+ Add Item</button>` : ''}
         </div>
         <div id="bring-list" class="bring-list">
-          ${bringItems.length ? bringItems.map(renderBringItem).join('') : emptyMsg('No items added yet.')}
+          ${renderBringList(bringItems)}
         </div>
         <div id="bring-form-area"></div>
+      </section>
+
+      <section class="reunion-section" id="section-other-info">
+        <div class="reunion-section-header">
+          <h2>Other Info</h2>
+        </div>
+        ${renderOtherInfo()}
       </section>
 
     </div>`;
 
   attachHandlers();
+}
+
+function camporeeDefault(value, fallback, staleValues = []) {
+  const trimmed = (value || '').trim();
+  if (!trimmed || staleValues.includes(trimmed)) return fallback;
+  return trimmed;
+}
+
+function renderActionItems() {
+  return `
+    <div class="action-grid">
+      ${CAMPOREE_ACTION_ITEMS.map(item => `
+        <div class="action-card">
+          <h3>${esc(item.title)}</h3>
+          <p>${esc(item.body)}</p>
+          ${renderLinks(item.links)}
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function renderFeaturedDetails() {
+  return `
+    <div class="detail-grid">
+      ${CAMPOREE_FEATURED_DETAILS.map(detail => `
+        <div class="detail-card">
+          <div class="detail-card-header">
+            <h3>${esc(detail.title)}</h3>
+            <p>${esc(detail.meta)}</p>
+          </div>
+          <ul class="detail-facts">
+            ${detail.facts.map(fact => `<li>${esc(fact)}</li>`).join('')}
+          </ul>
+          ${renderLinks(detail.links)}
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function renderMealNotes() {
+  return `
+    <div class="reunion-callout">
+      <strong>Thank you, Uncle Paul.</strong>
+      <span>Dinner for all three nights is paid for courtesy of Paul Schulte.</span>
+    </div>
+    <div class="info-list">
+      ${CAMPOREE_MEAL_NOTES.map(note => `<div class="info-list-item">${esc(note)}</div>`).join('')}
+    </div>`;
+}
+
+function renderCamporeeSchedule() {
+  return CAMPOREE_SCHEDULE.map(day => `
+    <div class="schedule-day">
+      <h3>${esc(day.day)}</h3>
+      <div class="schedule-day-items">
+        ${day.items.map(([time, activity]) => `
+          <div class="schedule-item schedule-default-item">
+            <div class="schedule-time">${esc(time)}</div>
+            <div class="schedule-activity">${esc(activity)}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAdditionalScheduleItems(items) {
+  return `
+    <div class="schedule-day schedule-added">
+      <h3>Additional Schedule Notes</h3>
+      <div class="schedule-day-items">
+        ${items.map(renderScheduleItem).join('')}
+      </div>
+    </div>`;
+}
+
+function renderBringList(bringItems) {
+  return `
+    ${CAMPOREE_BRING_ITEMS.map(item => renderBringText(item)).join('')}
+    ${bringItems.length ? bringItems.map(renderBringItem).join('') : ''}`;
+}
+
+function renderBringText(text) {
+  return `
+    <div class="bring-item">
+      <span class="bring-bullet">•</span>
+      <span class="bring-text">${esc(text)}</span>
+    </div>`;
+}
+
+function renderOtherInfo() {
+  return `
+    <div class="info-list">
+      ${CAMPOREE_OTHER_INFO.map(note => `<div class="info-list-item">${esc(note)}</div>`).join('')}
+    </div>`;
+}
+
+function renderLinks(links = []) {
+  if (!links || !links.length) return '';
+  return `
+    <div class="inline-link-row">
+      ${links.map(link => `<a href="${esc(link.href)}">${esc(link.label)}</a>`).join('')}
+    </div>`;
 }
 
 function renderScheduleItem(item) {
@@ -255,13 +567,13 @@ function showInfoEditor() {
   div.innerHTML = `
     <div class="info-editor-inner profile-form">
       <h3>Edit Event Details</h3>
-      <div class="form-group"><label>Event Title</label><input id="ie-title" type="text" value="${esc(get('event_title') || 'Schulte Family Reunion')}"></div>
+      <div class="form-group"><label>Event Title</label><input id="ie-title" type="text" value="${esc(camporeeDefault(get('event_title'), CAMPOREE_DEFAULTS.eventTitle, ['Schulte Family Reunion']))}"></div>
       <div class="form-row">
-        <div class="form-group"><label>Date</label><input id="ie-date" type="text" value="${esc(get('event_date') || 'July 4, 2026')}" placeholder="e.g. July 4, 2026"></div>
-        <div class="form-group"><label>Location</label><input id="ie-loc" type="text" value="${esc(get('event_location'))}" placeholder="City, State or venue name"></div>
+        <div class="form-group"><label>Date</label><input id="ie-date" type="text" value="${esc(camporeeDefault(get('event_date'), CAMPOREE_DEFAULTS.eventDate, ['July 4, 2026']))}" placeholder="e.g. July 2-5, 2026"></div>
+        <div class="form-group"><label>Location</label><input id="ie-loc" type="text" value="${esc(camporeeDefault(get('event_location'), CAMPOREE_DEFAULTS.eventLocation, ['Location TBD']))}" placeholder="City, State or venue name"></div>
       </div>
       <div class="form-group"><label>Address</label><input id="ie-addr" type="text" value="${esc(get('event_address'))}" placeholder="Street address (optional)"></div>
-      <div class="form-group"><label>Welcome Note</label><input id="ie-note" type="text" value="${esc(get('welcome_note'))}" placeholder="A brief message for family members…"></div>
+      <div class="form-group"><label>Welcome Note</label><input id="ie-note" type="text" value="${esc(get('welcome_note') || CAMPOREE_DEFAULTS.welcomeNote)}" placeholder="A brief message for family members…"></div>
       <div class="form-actions">
         <button id="ie-save" class="btn-primary">Save</button>
         <button id="ie-cancel" class="btn-secondary">Cancel</button>

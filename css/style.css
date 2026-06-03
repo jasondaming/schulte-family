@@ -1273,6 +1273,31 @@ nav {
   background: rgba(255,255,255,0.25) !important;
 }
 
+.reunion-hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+}
+.reunion-hero-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid rgba(255,255,255,0.45);
+  border-radius: var(--radius);
+  color: white;
+  background: rgba(255,255,255,0.14);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.reunion-hero-link:hover {
+  background: rgba(255,255,255,0.25);
+}
+
 /* Info editor (admin) */
 .info-editor {
   background: rgba(0,0,0,0.2);
@@ -1319,12 +1344,139 @@ nav {
   color: var(--primary-dark);
   margin: 0;
 }
+.section-subtitle {
+  margin-top: 0.15rem;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+/* Camporee summary sections */
+.action-grid,
+.detail-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+.action-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.detail-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.action-card,
+.detail-card {
+  border: 1px solid #ececec;
+  border-radius: var(--radius);
+  background: #fafafa;
+  padding: 0.85rem 0.95rem;
+}
+.action-card h3,
+.detail-card h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.98rem;
+  color: var(--primary-dark);
+}
+.action-card p,
+.detail-card p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+.detail-card-header {
+  padding-bottom: 0.55rem;
+  margin-bottom: 0.6rem;
+  border-bottom: 1px solid #ececec;
+}
+.detail-card-header p {
+  color: var(--accent);
+  font-weight: 700;
+}
+.detail-facts {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.detail-facts li {
+  font-size: 0.86rem;
+  color: var(--text);
+}
+.inline-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+}
+.inline-link-row a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  color: var(--primary);
+  background: var(--surface);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.inline-link-row a:hover {
+  background: var(--primary-light);
+}
+
+.reunion-callout {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #ead7a6;
+  border-radius: var(--radius);
+  background: #fff8e8;
+  color: #6f5212;
+  font-size: 0.9rem;
+}
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.info-list-item {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #f0f0f0;
+  border-radius: var(--radius);
+  background: #fafafa;
+  font-size: 0.88rem;
+  color: var(--text);
+}
 
 /* Schedule */
 .schedule-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem;
+}
+
+.schedule-day {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.schedule-day h3 {
+  margin: 0;
+  padding: 0.25rem 0;
+  color: var(--accent);
+  font-size: 0.98rem;
+  border-bottom: 1px solid var(--primary-light);
+}
+.schedule-day-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.schedule-added {
+  margin-top: 0.25rem;
 }
 
 .schedule-item {
@@ -1336,6 +1488,7 @@ nav {
   border: 1px solid #f0f0f0;
   flex-wrap: wrap;
 }
+.schedule-default-item,
 .schedule-item:nth-child(odd) { background: #fafafa; }
 
 .schedule-time {
@@ -1522,8 +1675,12 @@ nav {
   .reunion-meta { flex-direction: column; gap: 0.25rem; }
   .reunion-sep { display: none; }
   .reunion-section { padding: 1rem; }
+  .action-grid,
+  .detail-grid { grid-template-columns: 1fr; }
+  .reunion-callout { flex-direction: column; gap: 0.1rem; }
   .schedule-item { flex-direction: column; gap: 0.25rem; }
   .schedule-time { min-width: auto; }
+  .inline-link-row a { flex: 1 1 auto; justify-content: center; }
 
   /* Print: single column on small screens */
   @media print {
