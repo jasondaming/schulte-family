@@ -36,7 +36,7 @@ const CAMPOREE_DEFAULTS = {
   eventTitle: '2026 Schulte Family Camporee',
   eventDate: 'July 2-5, 2026',
   eventLocation: "Santa's Cottages",
-  eventAddress: '',
+  eventAddress: '1405 W Christmas Blvd, Santa Claus, IN 47579',
   welcomeNote: 'The Schulte Standard: four days of family, food, games, music, Mass, and the family picture.',
 };
 
@@ -234,6 +234,7 @@ function render() {
   const eventDate     = camporeeDefault(get('event_date'), CAMPOREE_DEFAULTS.eventDate, ['July 4, 2026']);
   const eventLocation = camporeeDefault(get('event_location'), CAMPOREE_DEFAULTS.eventLocation, ['Location TBD']);
   const eventAddress  = get('event_address') || CAMPOREE_DEFAULTS.eventAddress;
+  const eventMapsUrl  = googleMapsUrl(eventLocation, eventAddress);
   const welcomeNote   = get('welcome_note') || CAMPOREE_DEFAULTS.welcomeNote;
 
   container.innerHTML = `
@@ -245,7 +246,7 @@ function render() {
         <div class="reunion-meta">
           <span class="reunion-date" id="r-date">📅 ${esc(eventDate)}</span>
           <span class="reunion-sep">·</span>
-          <span class="reunion-loc" id="r-loc">📍 ${esc(eventLocation)}${eventAddress ? ', ' + esc(eventAddress) : ''}</span>
+          <a class="reunion-loc" id="r-loc" href="${esc(eventMapsUrl)}" target="_blank" rel="noopener" title="Open in Google Maps">📍 ${esc(eventLocation)}${eventAddress ? ', ' + esc(eventAddress) : ''}</a>
         </div>
         ${welcomeNote ? `<p class="reunion-welcome" id="r-welcome">${esc(welcomeNote)}</p>` : ''}
         <div class="reunion-hero-actions">
@@ -336,6 +337,11 @@ function camporeeDefault(value, fallback, staleValues = []) {
   const trimmed = (value || '').trim();
   if (!trimmed || staleValues.includes(trimmed)) return fallback;
   return trimmed;
+}
+
+function googleMapsUrl(location, address) {
+  const query = [location, address].filter(Boolean).join(', ');
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
 function renderActionItems() {
@@ -572,7 +578,7 @@ function showInfoEditor() {
         <div class="form-group"><label>Date</label><input id="ie-date" type="text" value="${esc(camporeeDefault(get('event_date'), CAMPOREE_DEFAULTS.eventDate, ['July 4, 2026']))}" placeholder="e.g. July 2-5, 2026"></div>
         <div class="form-group"><label>Location</label><input id="ie-loc" type="text" value="${esc(camporeeDefault(get('event_location'), CAMPOREE_DEFAULTS.eventLocation, ['Location TBD']))}" placeholder="City, State or venue name"></div>
       </div>
-      <div class="form-group"><label>Address</label><input id="ie-addr" type="text" value="${esc(get('event_address'))}" placeholder="Street address (optional)"></div>
+      <div class="form-group"><label>Address</label><input id="ie-addr" type="text" value="${esc(get('event_address') || CAMPOREE_DEFAULTS.eventAddress)}" placeholder="Street address (optional)"></div>
       <div class="form-group"><label>Welcome Note</label><input id="ie-note" type="text" value="${esc(get('welcome_note') || CAMPOREE_DEFAULTS.welcomeNote)}" placeholder="A brief message for family members…"></div>
       <div class="form-actions">
         <button id="ie-save" class="btn-primary">Save</button>
