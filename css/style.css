@@ -2007,90 +2007,13 @@ nav {
 .history-item-actions a:hover {
   background: var(--primary-light);
 }
-
-/* === Install prompt === */
-.install-card-action {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-}
-.login-card .install-app-btn {
-  background: var(--surface);
-  color: var(--primary);
-  border: 1px solid var(--primary);
-}
-.login-card .install-app-btn:hover {
-  background: var(--primary-light);
-}
-.nav-install {
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.45);
-  color: white;
-  padding: 0.3rem 0.75rem;
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: all 0.2s;
-  margin-right: 0.5rem;
-}
-.nav-install:hover {
-  background: rgba(255,255,255,0.22);
-}
-.install-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  background: rgba(0,0,0,0.45);
-}
-.install-modal {
-  position: relative;
-  width: min(100%, 360px);
-  background: var(--surface);
-  color: var(--text);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
-  padding: 1.25rem;
-}
-.install-modal h2 {
-  margin: 0 2rem 0.75rem 0;
-  color: var(--primary);
-  font-size: 1.15rem;
-}
-.install-modal-close {
-  position: absolute;
-  top: 0.6rem;
-  right: 0.6rem;
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 1.35rem;
-  line-height: 1;
-  cursor: pointer;
-}
-.install-steps {
-  margin: 0;
-  padding-left: 1.25rem;
-  color: var(--text);
-}
-.install-steps li {
-  margin: 0.45rem 0;
-}
 /* === Responsive === */
 @media (max-width: 768px) {
   nav { flex-wrap: wrap; padding: 0.35rem 0.75rem; gap: 0.25rem; }
   .nav-brand { flex: 1 1 auto; font-size: 0.95rem; margin-right: 0.5rem; }
   .nav-links { order: 3; flex: 1 0 100%; gap: 0.2rem; margin-top: 0.25rem; }
   .nav-link { font-size: 0.8rem; padding: 0.35rem 0.5rem; }
-  .nav-install, .nav-logout { flex: 0 0 auto; min-height: 44px; padding: 0.45rem 0.7rem; }
-  .nav-install { margin-right: 0.25rem; }
+  .nav-logout { flex: 0 0 auto; min-height: 44px; padding: 0.45rem 0.7rem; }
   .view { padding: 1rem; }
   .view-header { flex-direction: column; align-items: stretch; }
   #search-input { width: 100%; }

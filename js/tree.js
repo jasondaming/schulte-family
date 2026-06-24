@@ -30,7 +30,10 @@ const BRANCH_PALETTE = [
 window.addEventListener('hashchange', dismissTooltip);
 
 export function initTree(people) {
-  setTreePeople(people);
+  allPeople = people;
+  peopleById = {};
+  for (const p of people) peopleById[p.personId] = p;
+  treeRoot = buildTree();
 
   // Default: just root expanded (shows Gus & Almeda and the 12)
   expandedNodes.clear();
@@ -42,19 +45,6 @@ export function initTree(people) {
   renderTree();
 }
 
-export function updateTree(people) {
-  setTreePeople(people);
-  expandedNodes.clear();
-  if (treeRoot) expandedNodes.add(treeRoot.id);
-  renderTree();
-}
-
-function setTreePeople(people) {
-  allPeople = people;
-  peopleById = {};
-  for (const p of people) peopleById[p.personId] = p;
-  treeRoot = buildTree();
-}
 /**
  * Navigate to a specific person: expand their ancestor path, render, scroll to their card.
  * Called from directory view when user clicks "View in Tree".

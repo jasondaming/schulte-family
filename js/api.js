@@ -10,12 +10,11 @@ async function apiCall(action, params = {}) {
 
   const url = new URL(SCRIPT_URL);
   url.searchParams.set('action', action);
-  url.searchParams.set('_ts', String(Date.now()));
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null) url.searchParams.set(k, v);
   }
 
-  const resp = await fetch(url.toString(), { cache: 'no-store' });
+  const resp = await fetch(url.toString());
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const data = await resp.json();
   if (data.error) throw new Error(data.error);

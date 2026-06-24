@@ -4,30 +4,22 @@
 
 import { fetchFamilies, isConfigured } from './api.js';
 import { initLogin, getSession, logout } from './auth.js';
-import { initDirectory, updateDirectory } from './directory.js';
-import { initTree, updateTree } from './tree.js';
-import { initProfile, updateProfileData } from './profile.js';
+import { initDirectory } from './directory.js';
+import { initTree } from './tree.js';
+import { initProfile } from './profile.js';
 import { initAdmin } from './admin.js';
 import { initReunion } from './reunion.js';
 import { initHistory } from './history.js';
-import { initInstallPrompt } from './install.js';
 
 let people = [];
 let session = null;
 let loginInitialized = false;
 let navInitialized = false;
 let logoutHandledAt = 0;
-let dataUpdateListenerInitialized = false;
 
 // === Boot ===
 
 document.addEventListener('DOMContentLoaded', () => {
-  try {
-    initInstallPrompt();
-  } catch (err) {
-    console.warn('Install prompt setup failed:', err);
-  }
-
   session = getSession();
   if (session) {
     showApp();
@@ -58,7 +50,6 @@ async function showApp() {
   document.getElementById('main-screen').classList.add('active');
 
   setupNav();
-  setupDataUpdateListener();
 
   await loadData();
 }
@@ -140,21 +131,6 @@ function restoreViews() {
   }
 }
 
-function setupDataUpdateListener() {
-  if (dataUpdateListenerInitialized) return;
-
-  document.addEventListener('family-data-updated', event => {
-    const freshPeople = event.detail && event.detail.people;
-    if (!Array.isArray(freshPeople) || !freshPeople.length) return;
-
-    people = freshPeople;
-    updateDirectory(people);
-    updateTree(people);
-    if (session) updateProfileData(people, session);
-  });
-
-  dataUpdateListenerInitialized = true;
-}
 function showSetupInstructions() {
   const view = document.querySelector('.view.active');
   if (!view) return;
