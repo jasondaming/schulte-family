@@ -22,7 +22,12 @@ let dataUpdateListenerInitialized = false;
 // === Boot ===
 
 document.addEventListener('DOMContentLoaded', () => {
-  initInstallPrompt();
+  try {
+    initInstallPrompt();
+  } catch (err) {
+    console.warn('Install prompt setup failed:', err);
+  }
+
   session = getSession();
   if (session) {
     showApp();
@@ -139,7 +144,7 @@ function setupDataUpdateListener() {
   if (dataUpdateListenerInitialized) return;
 
   document.addEventListener('family-data-updated', event => {
-    const freshPeople = event.detail?.people;
+    const freshPeople = event.detail && event.detail.people;
     if (!Array.isArray(freshPeople) || !freshPeople.length) return;
 
     people = freshPeople;

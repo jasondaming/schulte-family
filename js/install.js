@@ -91,7 +91,8 @@ function installInstructionsHtml() {
 }
 
 function isStandalone() {
-  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const standaloneMedia = typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches;
+  return standaloneMedia || window.navigator.standalone === true;
 }
 
 function isAppleMobile() {
