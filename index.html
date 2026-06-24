@@ -18,7 +18,11 @@
           <input type="text" id="login-first" placeholder="Your first name" required autocomplete="given-name">
 
           <label for="login-birth">Birthday</label>
-          <input type="date" id="login-birth" required>
+          <div class="login-birthday-row">
+            <input type="text" id="login-birth" placeholder="MM/DD/YYYY" required autocomplete="bday" inputmode="numeric" pattern="[0-9/.\-]*" maxlength="10">
+            <button type="button" id="login-birth-picker" class="birthday-picker-btn" aria-label="Pick birthday from calendar">Pick</button>
+            <input type="date" id="login-birth-native" class="login-birth-native" tabindex="-1" aria-hidden="true">
+          </div>
 
           <button type="submit" id="login-btn">Sign In</button>
           <p id="login-error" class="error" hidden>Name and birthday not found. Make sure your info is in the family database.</p>
@@ -34,7 +38,8 @@
           <a href="#directory" class="nav-link active" data-view="directory">Directory</a>
           <a href="#tree" class="nav-link" data-view="tree">Family Tree</a>
           <a href="#profile" class="nav-link" data-view="profile">My Info</a>
-          <a href="#reunion" class="nav-link nav-reunion" data-view="reunion">🇺🇸 Reunion</a>
+          <a href="#reunion" class="nav-link nav-reunion" data-view="reunion">Reunion</a>
+          <a href="#history" class="nav-link" data-view="history">History</a>
           <!-- Admin link — shown only for admin users via JS -->
           <a href="#admin" class="nav-link nav-admin" data-view="admin" style="display:none">Admin</a>
         </div>
@@ -47,13 +52,13 @@
           <h2>Family Directory</h2>
           <div class="dir-header-right">
             <input type="text" id="search-input" placeholder="Search by name, city, state...">
-            <button id="print-directory-btn" class="btn-secondary print-hide" title="Print directory">🖨️ Print</button>
+            <button id="print-directory-btn" class="btn-secondary print-hide" title="Print compact directory list">Print List</button>
           </div>
         </div>
         <div class="directory-filters print-hide">
           <button class="filter-btn active" data-filter="all">All</button>
           <button class="filter-btn" data-filter="branch">By Branch</button>
-          <button class="filter-btn" data-filter="upcoming">Upcoming Birthdays</button>
+          <button class="filter-btn" data-filter="upcoming">Birthdays</button>
           <span class="legend-note">✝ = deceased</span>
         </div>
         <div id="directory-list" class="card-grid"></div>
@@ -82,6 +87,8 @@
 
       <!-- Reunion View -->
       <div id="reunion-view" class="view"></div>
+      <!-- Reunion History View -->
+      <div id="history-view" class="view"></div>
 
       <!-- Admin Panel View -->
       <div id="admin-view" class="view"></div>

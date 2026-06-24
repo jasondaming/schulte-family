@@ -201,7 +201,7 @@ function buildTree() {
     const childPeople = allPeople.filter(p => {
       if (visited.has(p.personId)) return false;
       return p.parentId == person.personId || (spouse && p.parentId == spouse.personId);
-    }).sort((a, b) => a.personId - b.personId);
+    }).sort(compareSiblingsByBirth);
 
     return {
       id: person.personId,
@@ -512,6 +512,25 @@ function formatDate(iso) {
   } catch { return iso; }
 }
 
+function compareSiblingsByBirth(a, b) {
+  const aBirth = birthTime(a);
+  const bBirth = birthTime(b);
+  if (aBirth !== null && bBirth !== null && aBirth !== bBirth) return aBirth - bBirth;
+  if (aBirth !== null && bBirth === null) return -1;
+  if (aBirth === null && bBirth !== null) return 1;
+  return numericPersonId(a) - numericPersonId(b);
+}
+
+function birthTime(person) {
+  if (!person || !person.birthday) return null;
+  const d = new Date(person.birthday + 'T12:00:00');
+  return isNaN(d) ? null : d.getTime();
+}
+
+function numericPersonId(person) {
+  const id = Number(person?.personId);
+  return Number.isFinite(id) ? id : Number.MAX_SAFE_INTEGER;
+}
 function esc(s) {
   return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

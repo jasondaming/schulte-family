@@ -9,6 +9,7 @@ import { initTree } from './tree.js';
 import { initProfile } from './profile.js';
 import { initAdmin } from './admin.js';
 import { initReunion } from './reunion.js';
+import { initHistory } from './history.js';
 
 let people = [];
 let session = null;
@@ -73,6 +74,7 @@ async function loadData() {
     initTree(people);
     await initProfile(people, session);
     await initReunion(session);
+    initHistory();
 
     if (session.isAdmin) {
       await initAdmin(people, session);
@@ -95,13 +97,13 @@ function restoreViews() {
         <h2>Family Directory</h2>
         <div class="dir-header-right">
           <input type="text" id="search-input" placeholder="Search by name, city, state...">
-          <button id="print-directory-btn" class="btn-secondary print-hide" title="Print directory">🖨️ Print</button>
+          <button id="print-directory-btn" class="btn-secondary print-hide" title="Print compact directory list">Print List</button>
         </div>
       </div>
       <div class="directory-filters print-hide">
         <button class="filter-btn active" data-filter="all">All</button>
         <button class="filter-btn" data-filter="branch">By Branch</button>
-        <button class="filter-btn" data-filter="upcoming">Upcoming Birthdays</button>
+        <button class="filter-btn" data-filter="upcoming">Birthdays</button>
         <span class="legend-note">✝ = deceased</span>
       </div>
       <div id="directory-list" class="card-grid"></div>`;

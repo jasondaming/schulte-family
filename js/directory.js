@@ -8,6 +8,16 @@ import { navigateToPerson } from './tree.js';
 let allPeople = [];
 let peopleById = {};
 let currentFilter = 'all';
+let lastRenderedHouseholds = [];
+
+const BIRTHDAY_INITIAL_PAST_DAYS = 7;
+const BIRTHDAY_INITIAL_FUTURE_DAYS = 30;
+const BIRTHDAY_LOAD_PAST_DAYS = 30;
+const BIRTHDAY_LOAD_FUTURE_DAYS = 60;
+let birthdayStartOffset = -BIRTHDAY_INITIAL_PAST_DAYS;
+let birthdayEndOffset = BIRTHDAY_INITIAL_FUTURE_DAYS;
+let birthdayScrollRestore = { mode: 'today' };
+let birthdayScrollPending = false;
 
 export function initDirectory(people) {
   allPeople = people;
@@ -22,7 +32,9 @@ export function initDirectory(people) {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      currentFilter = btn.dataset.filter;
+      const nextFilter = btn.dataset.filter;
+      if (nextFilter === 'upcoming') resetBirthdayWindow();
+      currentFilter = nextFilter;
       render();
     });
   });
@@ -30,7 +42,10 @@ export function initDirectory(people) {
   // Print button
   const printBtn = document.getElementById('print-directory-btn');
   if (printBtn) {
-    printBtn.addEventListener('click', () => window.print());
+    printBtn.addEventListener('click', () => {
+      renderPrintDirectory(lastRenderedHouseholds);
+      window.print();
+    });
   }
 
   render();
@@ -64,6 +79,9 @@ function render() {
       return searchable.includes(query);
     });
   }
+
+  lastRenderedHouseholds = households;
+  renderPrintDirectory(households);
 
   if (currentFilter === 'upcoming') {
     renderUpcomingBirthdays(container);
@@ -123,6 +141,7 @@ function render() {
  * Avoids showing the same couple twice.
  */
 function buildHouseholds() {
+  const familyOrder = buildFamilyOrderMap();
   const seen = new Set();
   const households = [];
 
@@ -131,14 +150,14 @@ function buildHouseholds() {
     // Skip deceased people who have no living spouse (they'll show via their spouse's card)
     if (p.deceased) {
       const spouse = p.spouseId ? peopleById[p.spouseId] : null;
-      if (!spouse || spouse.deceased) continue; // both deceased or no spouse — skip
-      // Has a living spouse — they'll be shown on the spouse's card
+      if (!spouse || spouse.deceased) continue; // both deceased or no spouse - skip
+      // Has a living spouse - they'll be shown on the spouse's card
       continue;
     }
     seen.add(p.personId);
 
     const members = [p];
-    // Add spouse (including deceased — they're still part of the family)
+    // Add spouse (including deceased - they're still part of the family)
     if (p.spouseId && peopleById[p.spouseId]) {
       const spouse = peopleById[p.spouseId];
       members.push(spouse);
@@ -156,78 +175,277 @@ function buildHouseholds() {
       return false;
     });
 
-    // Sort: living first, then by personId
-    children.sort((a, b) => {
-      if (a.deceased !== b.deceased) return a.deceased ? 1 : -1;
-      return a.personId - b.personId;
-    });
+    children.sort(compareSiblingsByBirth);
 
     households.push({
       members,
       children,
       branch: p.branch || (p.spouseId && peopleById[p.spouseId]?.branch) || '',
+      familyOrder: householdFamilyOrder(members, familyOrder),
     });
   }
+
+  households.sort((a, b) => {
+    if (a.familyOrder !== b.familyOrder) return a.familyOrder - b.familyOrder;
+    return compareSiblingsByBirth(a.members[0], b.members[0]);
+  });
 
   return households;
 }
 
-function renderUpcomingBirthdays(container) {
-  // Collect all living people with birthdays in the next 60 days
-  const upcoming = [];
-  for (const p of allPeople) {
-    if (p.deceased || !p.birthday) continue;
-    const days = daysUntilBirthday(p.birthday);
-    if (days !== null && days <= 60) {
-      upcoming.push({ person: p, days });
-    }
-  }
-  upcoming.sort((a, b) => a.days - b.days);
+function buildFamilyOrderMap() {
+  const order = new Map();
+  let nextOrder = 0;
+  let currentGeneration = allPeople
+    .filter(p => !p.parentId && Number(p.generation) === 0)
+    .sort(compareSiblingsByBirth);
 
-  if (upcoming.length === 0) {
-    container.innerHTML = '<p class="loading">No upcoming birthdays in the next 60 days.</p>';
+  while (currentGeneration.length) {
+    const nextGeneration = [];
+    const nextIds = new Set();
+
+    for (const person of currentGeneration) {
+      if (!person || order.has(String(person.personId))) continue;
+      assignFamilyOrder(order, person, nextOrder++);
+
+      const spouse = person.spouseId ? peopleById[person.spouseId] : null;
+      const parentIds = new Set([String(person.personId)]);
+      if (spouse) parentIds.add(String(spouse.personId));
+
+      const children = allPeople
+        .filter(p => parentIds.has(String(p.parentId || '')))
+        .sort(compareSiblingsByBirth);
+
+      for (const child of children) {
+        const id = String(child.personId);
+        if (!order.has(id) && !nextIds.has(id)) {
+          nextIds.add(id);
+          nextGeneration.push(child);
+        }
+      }
+    }
+
+    currentGeneration = nextGeneration;
+  }
+
+  for (const person of [...allPeople].sort(compareSiblingsByBirth)) {
+    if (!order.has(String(person.personId))) assignFamilyOrder(order, person, nextOrder++);
+  }
+
+  return order;
+}
+
+function assignFamilyOrder(order, person, value) {
+  order.set(String(person.personId), value);
+  const spouse = person.spouseId ? peopleById[person.spouseId] : null;
+  if (spouse && !order.has(String(spouse.personId))) {
+    order.set(String(spouse.personId), value);
+  }
+}
+
+function householdFamilyOrder(members, familyOrder) {
+  return Math.min(...members.map(m => familyOrder.get(String(m.personId)) ?? Number.MAX_SAFE_INTEGER));
+}
+
+function compareSiblingsByBirth(a, b) {
+  const aBirth = birthTime(a);
+  const bBirth = birthTime(b);
+  if (aBirth !== null && bBirth !== null && aBirth !== bBirth) return aBirth - bBirth;
+  if (aBirth !== null && bBirth === null) return -1;
+  if (aBirth === null && bBirth !== null) return 1;
+  return numericPersonId(a) - numericPersonId(b);
+}
+
+function birthTime(person) {
+  if (!person || !person.birthday) return null;
+  const d = parseDate(person.birthday);
+  return d ? d.getTime() : null;
+}
+
+function numericPersonId(person) {
+  const id = Number(person?.personId);
+  return Number.isFinite(id) ? id : Number.MAX_SAFE_INTEGER;
+}
+function renderUpcomingBirthdays(container) {
+  const birthdays = birthdayEntriesForWindow(birthdayStartOffset, birthdayEndOffset);
+
+  if (birthdays.length === 0) {
+    container.innerHTML = '<p class="loading">No birthdays found.</p>';
     return;
   }
 
-  let html = '<div class="birthday-list">';
-  for (const { person: p, days } of upcoming) {
-    const name = `${esc(p.firstName)} ${esc(p.lastName || '')}`.trim();
-    const dateStr = fmtBday(p.birthday);
-    const age = getUpcomingAge(p.birthday);
-    let when;
-    if (days === 0) when = '<strong>Today!</strong>';
-    else if (days === 1) when = 'Tomorrow';
-    else when = `in ${days} days`;
+  let html = '<div class="birthday-list birthday-list-scroll" id="birthday-scroll-list">';
 
-    html += `<div class="birthday-row${days <= 7 ? ' birthday-soon' : ''}">`;
+  let todayInserted = false;
+  for (const { person: p, days, occurrence } of birthdays) {
+    if (!todayInserted && days >= 0) {
+      html += todayDividerHtml();
+      todayInserted = true;
+    }
+
+    const name = `${esc(p.firstName)} ${esc(p.lastName || '')}`.trim();
+    const dateStr = fmtDateForBirthdayList(occurrence);
+    const age = getAgeOnOccurrence(p.birthday, occurrence);
+    const ageText = age ? (days < 0 ? ' (turned ' + age + ')' : ' (turning ' + age + ')') : '';
+    const when = describeBirthdayOffset(days);
+    const rowClass = days < 0 ? ' birthday-past' : days === 0 ? ' birthday-today' : days <= 7 ? ' birthday-soon' : '';
+
+    html += `<div class="birthday-row${rowClass}">`;
     html += `<span class="birthday-row-name">${name}</span>`;
-    html += `<span class="birthday-row-date">${dateStr}${age ? ` (turning ${age})` : ''}</span>`;
+    html += `<span class="birthday-row-date">${dateStr}${ageText}</span>`;
     html += `<span class="birthday-row-when">${when}</span>`;
-    html += `</div>`;
+    html += '</div>';
   }
+
+  if (!todayInserted) html += todayDividerHtml();
   html += '</div>';
   container.innerHTML = html;
+  attachBirthdayScroller(container);
 }
 
+function resetBirthdayWindow() {
+  birthdayStartOffset = -BIRTHDAY_INITIAL_PAST_DAYS;
+  birthdayEndOffset = BIRTHDAY_INITIAL_FUTURE_DAYS;
+  birthdayScrollRestore = { mode: 'today' };
+  birthdayScrollPending = false;
+}
+
+function birthdayEntriesForWindow(startOffset, endOffset) {
+  const today = startOfToday();
+  const startDate = addDays(today, startOffset);
+  const endDate = addDays(today, endOffset);
+  const entries = [];
+
+  for (const p of allPeople) {
+    if (p.deceased || !p.birthday) continue;
+    const bd = parseDate(p.birthday);
+    if (!bd) continue;
+
+    for (let year = startDate.getFullYear(); year <= endDate.getFullYear(); year += 1) {
+      const occurrence = new Date(year, bd.getMonth(), bd.getDate());
+      if (occurrence.getMonth() !== bd.getMonth() || occurrence.getDate() !== bd.getDate()) continue;
+      if (occurrence < startDate || occurrence > endDate) continue;
+      entries.push({ person: p, occurrence, days: daysBetween(occurrence, today) });
+    }
+  }
+
+  entries.sort((a, b) => {
+    if (a.days !== b.days) return a.days - b.days;
+    const aName = `${a.person.firstName} ${a.person.lastName || ''}`;
+    const bName = `${b.person.firstName} ${b.person.lastName || ''}`;
+    return aName.localeCompare(bName);
+  });
+
+  return entries;
+}
+
+function attachBirthdayScroller(container) {
+  const list = container.querySelector('#birthday-scroll-list');
+  if (!list) return;
+
+  list.addEventListener('scroll', () => {
+    if (birthdayScrollPending) return;
+
+    if (list.scrollTop < 48) {
+      extendBirthdayWindow(container, 'earlier', list);
+    } else if (list.scrollTop + list.clientHeight > list.scrollHeight - 48) {
+      extendBirthdayWindow(container, 'later', list);
+    }
+  }, { passive: true });
+  list.addEventListener('wheel', (e) => {
+    if (birthdayScrollPending) return;
+
+    if (e.deltaY < 0 && list.scrollTop <= 0) {
+      extendBirthdayWindow(container, 'earlier', list);
+    } else if (e.deltaY > 0 && list.scrollTop + list.clientHeight >= list.scrollHeight) {
+      extendBirthdayWindow(container, 'later', list);
+    }
+  }, { passive: true });
+  restoreBirthdayScroll(list);
+}
+
+function extendBirthdayWindow(container, direction, list) {
+  birthdayScrollPending = true;
+
+  if (direction === 'earlier') {
+    birthdayStartOffset -= BIRTHDAY_LOAD_PAST_DAYS;
+    birthdayScrollRestore = {
+      mode: 'earlier',
+      previousHeight: list.scrollHeight,
+      previousTop: list.scrollTop,
+    };
+  } else {
+    birthdayEndOffset += BIRTHDAY_LOAD_FUTURE_DAYS;
+    birthdayScrollRestore = {
+      mode: 'later',
+      previousTop: list.scrollTop,
+    };
+  }
+
+  renderUpcomingBirthdays(container);
+}
+
+function restoreBirthdayScroll(list) {
+  const restore = birthdayScrollRestore || { mode: 'same', previousTop: list.scrollTop };
+  birthdayScrollRestore = null;
+
+  requestAnimationFrame(() => {
+    if (restore.mode === 'today') {
+      const anchor = list.querySelector('.birthday-today-anchor');
+      if (anchor) list.scrollTop = Math.max(0, anchor.offsetTop - list.offsetTop);
+    } else if (restore.mode === 'earlier') {
+      list.scrollTop = Math.max(0, list.scrollHeight - restore.previousHeight + restore.previousTop);
+    } else if (restore.mode === 'later') {
+      list.scrollTop = restore.previousTop;
+    }
+
+    birthdayScrollPending = false;
+  });
+}
+
+function todayDividerHtml() {
+  return '<div class="birthday-day-divider birthday-today-anchor">Today</div>';
+}
+
+function fmtDateForBirthdayList(date) {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function describeBirthdayOffset(days) {
+  if (days === 0) return '<strong>Today!</strong>';
+  if (days === 1) return 'Tomorrow';
+  if (days === -1) return 'Yesterday';
+  if (days < 0) return `${Math.abs(days)} days ago`;
+  return `in ${days} days`;
+}
+
+function getAgeOnOccurrence(dateStr, occurrence) {
+  const bd = parseDate(dateStr);
+  if (!bd || !occurrence) return null;
+  return occurrence.getFullYear() - bd.getFullYear();
+}
+
+function startOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+function daysBetween(target, base) {
+  return Math.round((target - base) / (1000 * 60 * 60 * 24));
+}
 /** Parse a YYYY-MM-DD string without timezone shift. */
 function parseDate(dateStr) {
   if (!dateStr) return null;
   // Append T12:00:00 so noon UTC — no timezone can shift it to a different day
   const d = new Date(dateStr + 'T12:00:00');
   return isNaN(d) ? null : d;
-}
-
-function getUpcomingAge(dateStr) {
-  if (!dateStr) return null;
-  try {
-    const bd = parseDate(dateStr);
-    if (!bd) return null;
-    const today = new Date();
-    let age = today.getFullYear() - bd.getFullYear();
-    const thisYearBd = new Date(today.getFullYear(), bd.getMonth(), bd.getDate());
-    if (thisYearBd < today) age += 1; // birthday already passed, so next year
-    return age;
-  } catch { return null; }
 }
 
 function renderByBranch(container, households) {
@@ -355,6 +573,125 @@ function householdCard(h) {
   return html;
 }
 
+function renderPrintDirectory(households) {
+  const wrap = ensurePrintDirectory();
+  const rows = households.map(h => printDirectoryRow(h)).join('');
+  const printedDate = new Date().toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric'
+  });
+
+  wrap.innerHTML = `
+    <div class="print-directory-title">Schulte Family Directory</div>
+    <div class="print-directory-meta">${households.length} households - printed ${esc(printedDate)}</div>
+    <table class="print-directory-table">
+      <thead>
+        <tr>
+          <th>Household</th>
+          <th>Mailing Address</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th>Dates</th>
+          <th>Branch</th>
+        </tr>
+      </thead>
+      <tbody>${rows || '<tr><td colspan="6">No directory entries found.</td></tr>'}</tbody>
+    </table>`;
+}
+
+function ensurePrintDirectory() {
+  let wrap = document.getElementById('print-directory-list');
+  if (wrap) return wrap;
+
+  wrap = document.createElement('div');
+  wrap.id = 'print-directory-list';
+  wrap.className = 'print-directory-wrap';
+  const list = document.getElementById('directory-list');
+  if (list && list.parentNode) list.parentNode.insertBefore(wrap, list.nextSibling);
+  return wrap;
+}
+
+function printDirectoryRow(h) {
+  return `
+    <tr>
+      <td>${esc(householdNameText(h))}</td>
+      <td>${linesHtml(householdAddressLines(h))}</td>
+      <td>${linesHtml(householdPhoneLines(h))}</td>
+      <td>${linesHtml(householdEmailLines(h))}</td>
+      <td>${linesHtml(householdDateLines(h))}</td>
+      <td>${esc(h.branch || '')}</td>
+    </tr>`;
+}
+
+function householdNameText(h) {
+  const [primary, spouse] = h.members;
+  if (!spouse) return personFullNameText(primary);
+
+  const sameLast = (primary.lastName || '') === (spouse.lastName || '');
+  if (sameLast || !spouse.lastName) {
+    return `${personFirstNameText(primary)} & ${personFirstNameText(spouse)} ${primary.lastName || ''}`.trim();
+  }
+  return `${personFullNameText(primary)} & ${personFullNameText(spouse)}`.trim();
+}
+
+function personFirstNameText(person) {
+  return `${person.firstName || ''}${person.deceased ? ' (dec.)' : ''}`;
+}
+
+function personFullNameText(person) {
+  return `${person.firstName || ''} ${person.lastName || ''}${person.deceased ? ' (dec.)' : ''}`.trim();
+}
+
+function householdAddressLines(h) {
+  const primary = h.members[0];
+  const spouse = h.members[1];
+  const address = primary.address || spouse?.address || '';
+  const city = primary.city || spouse?.city || '';
+  const state = primary.state || spouse?.state || '';
+  const zip = primary.zip || spouse?.zip || '';
+  const cityState = [city, state].filter(Boolean).join(', ');
+  return [address, [cityState, zip].filter(Boolean).join(' ')].filter(Boolean);
+}
+
+function householdPhoneLines(h) {
+  const primary = h.members[0];
+  const spouse = h.members[1];
+  const lines = [];
+  const home = primary.phone || spouse?.phone;
+  if (home) lines.push(`Home: ${home}`);
+  for (const m of h.members) {
+    if (m.cell) lines.push(`${m.firstName}: ${m.cell}`);
+  }
+  return lines;
+}
+
+function householdEmailLines(h) {
+  return h.members
+    .filter(m => m.email)
+    .map(m => `${m.firstName}: ${m.email}`);
+}
+
+function householdDateLines(h) {
+  const lines = [];
+  for (const m of h.members) {
+    if (m.birthday) lines.push(`${m.firstName} bday: ${fmtMonthDay(m.birthday)}`);
+  }
+  const anniv = h.members[0].anniversary || h.members[1]?.anniversary;
+  if (anniv) lines.push(`Anniv: ${fmtMonthDay(anniv)}`);
+  return lines;
+}
+
+function linesHtml(lines) {
+  return lines.filter(Boolean).map(esc).join('<br>');
+}
+
+function fmtMonthDay(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = parseDate(dateStr);
+    if (!d) return dateStr;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch { return dateStr; }
+}
 function hasBirthdaySoon(h) {
   return h.members.some(m => {
     const d = daysUntilBirthday(m.birthday);
@@ -367,10 +704,10 @@ function daysUntilBirthday(dateStr) {
   try {
     const d = parseDate(dateStr);
     if (!d) return null;
-    const today = new Date();
+    const today = startOfToday();
     const thisYear = new Date(today.getFullYear(), d.getMonth(), d.getDate());
     if (thisYear < today) thisYear.setFullYear(today.getFullYear() + 1);
-    return Math.round((thisYear - today) / (1000 * 60 * 60 * 24));
+    return daysBetween(thisYear, today);
   } catch { return null; }
 }
 
