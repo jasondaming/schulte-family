@@ -1,0 +1,25 @@
+{
+  "name": "Schulte Family Directory",
+  "short_name": "Schulte Family",
+  "description": "Schulte family directory, birthdays, family tree, and reunion information.",
+  "start_url": "./",
+  "scope": "./",
+  "id": "/schulte-family/",
+  "display": "standalone",
+  "background_color": "#f5f5f0",
+  "theme_color": "#2d5a27",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

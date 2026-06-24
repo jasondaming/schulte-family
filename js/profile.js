@@ -8,6 +8,7 @@ import { updateProfile, fetchEvents, addEvent, addPerson, removePerson, detachSp
 let allPeople = [];
 let peopleById = {};
 let sessionToken = null;
+let sessionPersonId = null;
 let myPerson = null;
 let isAdmin = false;
 let eventsByPersonId = {};
@@ -25,13 +26,10 @@ const EVENT_TYPE_LABELS = {
 };
 
 export async function initProfile(people, session) {
-  allPeople = people;
-  peopleById = {};
-  for (const p of people) peopleById[p.personId] = p;
   sessionToken = session.token;
+  sessionPersonId = session.personId;
   isAdmin = !!session.isAdmin;
-
-  myPerson = people.find(p => String(p.personId) === String(session.personId));
+  setProfilePeople(people);
   if (!myPerson) {
     document.getElementById('profile-view').innerHTML =
       '<p class="loading">Could not find your record. Contact the database admin.</p>';
@@ -55,11 +53,30 @@ export async function initProfile(people, session) {
 }
 
 export function updateProfileData(people, session) {
+  sessionPersonId = session.personId;
+  setProfilePeople(people);
+  if (myPerson) renderProfileView();
+}
+
+function setProfilePeople(people) {
   allPeople = people;
   peopleById = {};
   for (const p of people) peopleById[p.personId] = p;
-  myPerson = people.find(p => String(p.personId) === String(session.personId));
-  if (myPerson) renderProfileView();
+  myPerson = people.find(p => String(p.personId) === String(sessionPersonId));
+}
+
+async function refreshFamilyData() {
+  const { fetchFamilies } = await import('./api.js');
+  const freshData = await fetchFamilies(sessionToken);
+  setProfilePeople(freshData.people || []);
+  renderProfileView();
+  notifyFamilyDataUpdated();
+}
+
+function notifyFamilyDataUpdated() {
+  document.dispatchEvent(new CustomEvent('family-data-updated', {
+    detail: { people: allPeople },
+  }));
 }
 
 function renderProfileView() {
@@ -142,13 +159,7 @@ function renderProfileView() {
       try {
         const result = await detachSpouse(sessionToken, reason, personId, deathDate);
         alert(result.message);
-        // Reload
-        const { fetchFamilies } = await import('./api.js');
-        const freshData = await fetchFamilies(sessionToken);
-        allPeople = freshData.people || [];
-        peopleById = {};
-        for (const p of allPeople) peopleById[p.personId] = p;
-        renderProfileView();
+        await refreshFamilyData();
       } catch (err) {
         alert('Error: ' + err.message);
         btn.disabled = false;
@@ -207,13 +218,7 @@ function renderProfileView() {
       btn.textContent = 'Removing...';
       try {
         await removePerson(sessionToken, personId);
-        // Reload
-        const { fetchFamilies } = await import('./api.js');
-        const result = await fetchFamilies(sessionToken);
-        allPeople = result.people || [];
-        peopleById = {};
-        for (const p of allPeople) peopleById[p.personId] = p;
-        renderProfileView();
+        await refreshFamilyData();
       } catch (err) {
         alert('Error: ' + err.message);
         btn.disabled = false;
@@ -538,14 +543,7 @@ async function handleAddSpouseSubmit() {
     status.className = 'status-msg success';
     status.hidden = false;
 
-    // Reload data to show the new spouse
-    const { fetchFamilies } = await import('./api.js');
-    const freshData = await fetchFamilies(sessionToken);
-    allPeople = freshData.people || [];
-    peopleById = {};
-    for (const p of allPeople) peopleById[p.personId] = p;
-    myPerson = peopleById[myPerson.personId];
-    renderProfileView();
+    await refreshFamilyData();
   } catch (err) {
     status.textContent = 'Error: ' + err.message;
     status.className = 'status-msg error';
@@ -621,13 +619,7 @@ async function handleAddChild() {
     status.className = 'status-msg success';
     status.hidden = false;
 
-    // Reload data to show the new person
-    const { fetchFamilies } = await import('./api.js');
-    const freshData = await fetchFamilies(sessionToken);
-    allPeople = freshData.people || [];
-    peopleById = {};
-    for (const p of allPeople) peopleById[p.personId] = p;
-    renderProfileView();
+    await refreshFamilyData();
   } catch (err) {
     status.textContent = 'Error: ' + err.message;
     status.className = 'status-msg error';

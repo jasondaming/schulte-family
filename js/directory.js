@@ -26,7 +26,10 @@ export function initDirectory(people) {
     peopleById[p.personId] = p;
   }
 
-  document.getElementById('search-input').addEventListener('input', () => render());
+  document.getElementById('search-input').addEventListener('input', () => {
+    if (currentFilter === 'upcoming') birthdayScrollRestore = { mode: 'today' };
+    render();
+  });
 
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -84,7 +87,7 @@ function render() {
   renderPrintDirectory(households);
 
   if (currentFilter === 'upcoming') {
-    renderUpcomingBirthdays(container);
+    renderUpcomingBirthdays(container, query);
     return;
   }
 
@@ -266,11 +269,13 @@ function numericPersonId(person) {
   const id = Number(person?.personId);
   return Number.isFinite(id) ? id : Number.MAX_SAFE_INTEGER;
 }
-function renderUpcomingBirthdays(container) {
-  const birthdays = birthdayEntriesForWindow(birthdayStartOffset, birthdayEndOffset);
+function renderUpcomingBirthdays(container, query = '') {
+  const birthdays = birthdayEntriesForWindow(birthdayStartOffset, birthdayEndOffset, query);
 
   if (birthdays.length === 0) {
-    container.innerHTML = '<p class="loading">No birthdays found.</p>';
+    container.innerHTML = query
+      ? '<p class="loading">No birthdays found for this search.</p>'
+      : '<p class="loading">No birthdays found.</p>';
     return;
   }
 
@@ -300,7 +305,7 @@ function renderUpcomingBirthdays(container) {
   if (!todayInserted) html += todayDividerHtml();
   html += '</div>';
   container.innerHTML = html;
-  attachBirthdayScroller(container);
+  attachBirthdayScroller(container, !!query);
 }
 
 function resetBirthdayWindow() {
@@ -310,10 +315,11 @@ function resetBirthdayWindow() {
   birthdayScrollPending = false;
 }
 
-function birthdayEntriesForWindow(startOffset, endOffset) {
+function birthdayEntriesForWindow(startOffset, endOffset, query = '') {
   const today = startOfToday();
-  const startDate = addDays(today, startOffset);
-  const endDate = addDays(today, endOffset);
+  const activeQuery = (query || '').toLowerCase().trim();
+  const startDate = addDays(today, activeQuery ? -BIRTHDAY_INITIAL_PAST_DAYS : startOffset);
+  const endDate = addDays(today, activeQuery ? 366 : endOffset);
   const entries = [];
 
   for (const p of allPeople) {
@@ -325,6 +331,7 @@ function birthdayEntriesForWindow(startOffset, endOffset) {
       const occurrence = new Date(year, bd.getMonth(), bd.getDate());
       if (occurrence.getMonth() !== bd.getMonth() || occurrence.getDate() !== bd.getDate()) continue;
       if (occurrence < startDate || occurrence > endDate) continue;
+      if (activeQuery && !matchesBirthdayQuery(p, occurrence, activeQuery)) continue;
       entries.push({ person: p, occurrence, days: daysBetween(occurrence, today) });
     }
   }
@@ -339,9 +346,32 @@ function birthdayEntriesForWindow(startOffset, endOffset) {
   return entries;
 }
 
-function attachBirthdayScroller(container) {
+function matchesBirthdayQuery(person, occurrence, query) {
+  const terms = query.split(/\s+/).filter(Boolean);
+  if (!terms.length) return true;
+
+  const haystack = [
+    person.firstName,
+    person.lastName,
+    person.branch,
+    person.city,
+    person.state,
+    person.birthday,
+    fmtDateForBirthdayList(occurrence),
+    fmtBday(person.birthday),
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  return terms.every(term => haystack.includes(term));
+}
+
+function attachBirthdayScroller(container, searchActive = false) {
   const list = container.querySelector('#birthday-scroll-list');
   if (!list) return;
+
+  if (searchActive) {
+    restoreBirthdayScroll(list);
+    return;
+  }
 
   list.addEventListener('scroll', () => {
     if (birthdayScrollPending) return;
