@@ -20,8 +20,10 @@
           <label for="login-birth">Birthday</label>
           <div class="login-birthday-row">
             <input type="text" id="login-birth" placeholder="MM/DD/YYYY" required autocomplete="bday" inputmode="numeric" pattern="[0-9/.\-]*" maxlength="10">
-            <button type="button" id="login-birth-picker" class="birthday-picker-btn" aria-label="Pick birthday from calendar">Pick</button>
-            <input type="date" id="login-birth-native" class="login-birth-native" tabindex="-1" aria-hidden="true">
+            <label class="birthday-picker-btn" for="login-birth-native">
+              <span>Pick</span>
+              <input type="date" id="login-birth-native" class="login-birth-native" aria-label="Pick birthday from calendar" autocomplete="bday">
+            </label>
           </div>
 
           <button type="submit" id="login-btn">Sign In</button>

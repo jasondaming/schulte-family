@@ -74,7 +74,6 @@ export function initLogin(onSuccess) {
   const btn = document.getElementById('login-btn');
   const firstInput = document.getElementById('login-first');
   const birthInput = document.getElementById('login-birth');
-  const birthPickerBtn = document.getElementById('login-birth-picker');
   const birthNativeInput = document.getElementById('login-birth-native');
 
   const remembered = loadRememberedLogin();
@@ -100,29 +99,19 @@ export function initLogin(onSuccess) {
   });
 
   if (birthNativeInput) {
-    birthNativeInput.addEventListener('change', () => {
-      if (birthNativeInput.value) birthInput.value = formatBirthdayForInput(birthNativeInput.value);
-      birthInput.focus();
-    });
-  }
-
-  if (birthPickerBtn && birthNativeInput) {
-    birthPickerBtn.addEventListener('click', () => {
+    const syncTextToNative = () => {
       const normalized = normalizeBirthdayInput(birthInput.value);
       if (normalized) birthNativeInput.value = normalized;
+    };
+    const syncNativeToText = () => {
+      if (birthNativeInput.value) birthInput.value = formatBirthdayForInput(birthNativeInput.value);
+    };
 
-      try {
-        if (typeof birthNativeInput.showPicker === 'function') {
-          birthNativeInput.showPicker();
-          return;
-        }
-      } catch {
-        // Fall back to click/focus below.
-      }
-
-      birthNativeInput.focus();
-      birthNativeInput.click();
-    });
+    birthNativeInput.addEventListener('focus', syncTextToNative);
+    birthNativeInput.addEventListener('pointerdown', syncTextToNative);
+    birthNativeInput.addEventListener('touchstart', syncTextToNative, { passive: true });
+    birthNativeInput.addEventListener('input', syncNativeToText);
+    birthNativeInput.addEventListener('change', syncNativeToText);
   }
 
   // If API isn't configured, show a setup prompt

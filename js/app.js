@@ -13,6 +13,9 @@ import { initHistory } from './history.js';
 
 let people = [];
 let session = null;
+let loginInitialized = false;
+let navInitialized = false;
+let logoutHandledAt = 0;
 
 // === Boot ===
 
@@ -31,10 +34,13 @@ function showLogin() {
   document.getElementById('login-screen').classList.add('active');
   document.getElementById('main-screen').classList.remove('active');
 
-  initLogin(() => {
-    session = getSession();
-    showApp();
-  });
+  if (!loginInitialized) {
+    initLogin(() => {
+      session = getSession();
+      showApp();
+    });
+    loginInitialized = true;
+  }
 }
 
 // === Main App ===
@@ -44,11 +50,6 @@ async function showApp() {
   document.getElementById('main-screen').classList.add('active');
 
   setupNav();
-
-  document.getElementById('logout-btn').addEventListener('click', () => {
-    logout();
-    window.location.reload();
-  });
 
   await loadData();
 }
@@ -152,12 +153,27 @@ function showSetupInstructions() {
 
 // === Navigation ===
 
-function setupNav() {
-  // Show admin link for admins
-  if (session && session.isAdmin) {
-    const adminLink = document.querySelector('.nav-admin');
-    if (adminLink) adminLink.style.display = '';
+function handleLogout(event) {
+  if (event) event.preventDefault();
+
+  const now = Date.now();
+  if (now - logoutHandledAt < 700) return;
+  logoutHandledAt = now;
+
+  logout();
+  session = null;
+  people = [];
+
+  if (window.location.hash) {
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
   }
+
+  showLogin();
+}
+
+function setupNav() {
+  const adminLink = document.querySelector('.nav-admin');
+  if (adminLink) adminLink.style.display = session && session.isAdmin ? '' : 'none';
 
   const links = document.querySelectorAll('.nav-link');
   const views = document.querySelectorAll('.view');
@@ -169,18 +185,28 @@ function setupNav() {
     views.forEach(v => v.classList.toggle('active', v.id === `${viewName}-view`));
   }
 
-  links.forEach(link => {
-    link.addEventListener('click', e => {
-      e.preventDefault();
-      window.location.hash = link.dataset.view;
-      navigate(link.dataset.view);
+  if (!navInitialized) {
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', handleLogout);
+      logoutBtn.addEventListener('touchend', handleLogout, { passive: false });
+    }
+
+    links.forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        window.location.hash = link.dataset.view;
+        navigate(link.dataset.view);
+      });
     });
-  });
+
+    window.addEventListener('hashchange', () => {
+      navigate(window.location.hash.replace('#', '') || 'directory');
+    });
+
+    navInitialized = true;
+  }
 
   const hash = window.location.hash.replace('#', '') || 'directory';
   navigate(hash);
-
-  window.addEventListener('hashchange', () => {
-    navigate(window.location.hash.replace('#', '') || 'directory');
-  });
 }
