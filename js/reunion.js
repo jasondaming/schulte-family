@@ -25,6 +25,7 @@ let foodSignups  = [];   // potluck signups from everyone
 
 const FOOD_CATEGORIES = ['Main Dish', 'Side Dish', 'Dessert', 'Drinks', 'Snacks', 'Other'];
 const CAMPOREE_SCHEDULE_PDF = 'CAMPOREE%20SCHEDULE%202026%20-%20Google%20Docs.pdf';
+const CAMPOREE_POSTER_IMAGE = '2026%20Camporee.jpg';
 const VAL_EMAIL = 'vawashburn1979@gmail.com';
 const VAL_PHONE = '502-525-1979';
 const KEVIN_PHONE = '513-885-8851';
@@ -326,6 +327,12 @@ function render() {
           <h2>Other Info</h2>
         </div>
         ${renderOtherInfo()}
+      </section>
+
+      <section class="reunion-poster-section" aria-label="2026 Schulte Camporee poster">
+        <a href="${CAMPOREE_POSTER_IMAGE}" target="_blank" rel="noopener">
+          <img src="${CAMPOREE_POSTER_IMAGE}" alt="The Schulte Standard 2026 Camporee poster" loading="lazy">
+        </a>
       </section>
 
     </div>`;

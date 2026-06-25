@@ -1,3 +1,5 @@
+const HISTORY_POSTER_IMAGE = 'Caporee%20History.jpg';
+
 const CAMPOREE_HISTORY = [
   {
     year: '1995',
@@ -52,7 +54,7 @@ const CAMPOREE_HISTORY = [
     year: '2021',
     location: "Santa's Cottages",
     album: 'https://photos.app.goo.gl/PP4JkzWPyPUJUdzS9',
-    image: 'https://lh3.googleusercontent.com/pw/AP1GczOYyY26_gOBDm57mKqzWICeWBnW6zTszZFUHnFJDw7P1uy_x7Qqc2YnS4qlnrbiAdms5rVi2VHrIt5QQYOVyhVc_nSyDgmkX2VW9fzgkpQoE3qYswXEp9TqJTJPIl8t2AVJhf0A6uLZA6JczJlUE31TSA=w1601-h1067-s-no?authuser=0',
+    image: 'https://lh3.googleusercontent.com/pw/AP1GczMngDNqVD90jJ532vY1SxdXiLQdF8rJUTd1RhChjPcSnEShwMDdsc7UFxBWwWzgS0fx8wntIMTp1NokdLCoEA7sY-LpVtqBh6M2auC9t8zaXKE0LFJWw_p43JyO4cwwGw8mRZHo8Ar5aYjazSqjLwA2=w1024-h683-s-no?authuser=0',
     note: 'Shared album currently has only a few photos beyond the group pictures.',
   },
   {
@@ -93,6 +95,12 @@ function renderHistory() {
           <div><strong>${CAMPOREE_HISTORY.filter(item => item.album).length}</strong><span>Photo albums</span></div>
           <div><strong>${new Set(CAMPOREE_HISTORY.map(item => item.location)).size}</strong><span>Locations</span></div>
         </div>
+      </section>
+
+      <section class="history-poster-section" aria-label="Camporee history poster">
+        <a href="${HISTORY_POSTER_IMAGE}" target="_blank" rel="noopener">
+          <img src="${HISTORY_POSTER_IMAGE}" alt="Schulte Family Camporee history poster" loading="lazy">
+        </a>
       </section>
 
       <section class="history-section history-callout">

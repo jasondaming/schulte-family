@@ -1478,6 +1478,31 @@ nav {
   background: rgba(255,255,255,0.25);
 }
 
+.reunion-poster-section,
+.history-poster-section {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 1.5rem;
+}
+.history-poster-section {
+  margin-bottom: 0;
+}
+.reunion-poster-section a,
+.history-poster-section a {
+  display: block;
+  width: min(100%, 526px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+.reunion-poster-section img,
+.history-poster-section img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
 /* Info editor (admin) */
 .info-editor {
   background: rgba(0,0,0,0.2);
