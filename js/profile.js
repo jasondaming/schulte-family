@@ -77,8 +77,9 @@ function renderProfileView() {
   html += personSection(myPerson, 'self');
   if (spouse) {
     html += personSection(spouse, 'spouse');
-  } else {
-    html += addSpouseFormHtml(myPerson);
+  }
+  if (!spouse || spouse.deceased) {
+    html += addSpouseFormHtml(myPerson, spouse && spouse.deceased ? spouse : null);
   }
   for (const child of children) html += personSection(child, `child-${child.personId}`);
   html += addChildFormHtml(myPerson);
@@ -234,13 +235,12 @@ function personSection(person, prefix) {
   const removeBtn = isChild
     ? ` <button class="remove-child-btn btn-danger-sm" data-person-id="${person.personId}" data-name="${esc(person.firstName)} ${esc(person.lastName || '')}">Remove</button>`
     : '';
-  const spouseActions = isSpouse
+  const spouseActions = isSpouse && !person.deceased
     ? `<div class="spouse-actions">
         <button class="btn-danger-sm detach-spouse-btn" data-person-id="${person.personId}" data-name="${esc(person.firstName)}" data-reason="death">Record Death</button>
         <button class="btn-danger-sm detach-spouse-btn" data-person-id="${person.personId}" data-name="${esc(person.firstName)}" data-reason="divorce">Record Divorce</button>
        </div>`
     : '';
-
   return `
     <div class="profile-section">
       <form class="profile-form" data-prefix="${prefix}" data-person-id="${person.personId}">
@@ -490,12 +490,16 @@ function formatDisplayDate(isoDate) {
   } catch { return isoDate; }
 }
 
-function addSpouseFormHtml(person) {
+function addSpouseFormHtml(person, previousSpouse = null) {
+  const help = previousSpouse
+    ? `<p class="form-hint">${esc(previousSpouse.firstName)} is marked deceased. Adding a current spouse will keep that record for history and make the new person the active spouse.</p>`
+    : '';
   return `
     <div class="profile-section">
       <form class="profile-form" onsubmit="return false">
         <fieldset>
-          <legend>Add Spouse</legend>
+          <legend>${previousSpouse ? 'Add Current Spouse' : 'Add Spouse'}</legend>
+          ${help}
           <div class="form-row">
             <div class="form-group"><label>First Name *</label><input type="text" id="my-spouse-first" required></div>
             <div class="form-group"><label>Last Name</label><input type="text" id="my-spouse-last" value="${esc(person.lastName || '')}"></div>
@@ -506,7 +510,7 @@ function addSpouseFormHtml(person) {
           </div>
           <div class="form-group"><label>Email</label><input type="email" id="my-spouse-email"></div>
           <div class="form-actions">
-            <button type="button" id="add-spouse-submit">Add Spouse</button>
+            <button type="button" id="add-spouse-submit">${previousSpouse ? 'Add Current Spouse' : 'Add Spouse'}</button>
             <span class="status-msg" id="add-spouse-status" hidden></span>
           </div>
         </fieldset>

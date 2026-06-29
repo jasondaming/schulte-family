@@ -524,21 +524,34 @@ function formatDisplayDate(isoDate) {
 // === Spouse Section (admin) ===
 
 function renderSpouseSection(person) {
-  if (person.spouseId && peopleById[person.spouseId]) {
-    const spouse = peopleById[person.spouseId];
-    return `
+  let html = '';
+  const spouse = person.spouseId && peopleById[person.spouseId] ? peopleById[person.spouseId] : null;
+
+  if (spouse) {
+    html += `
       <div class="admin-spouse-info">
         <strong>Spouse:</strong> ${esc(spouse.firstName)} ${esc(spouse.lastName || '')}
         ${spouse.deceased ? '(deceased)' : ''}
       </div>`;
+
+    if (!spouse.deceased) return html;
+
+    html += `
+      <div class="form-hint">
+        ${esc(spouse.firstName)} is marked deceased. Adding a current spouse will keep that record for history and make the new person the active spouse.
+      </div>`;
   }
 
-  // No spouse — show add form
-  return `
+  const legend = spouse && spouse.deceased
+    ? `Add Current Spouse for ${esc(person.firstName)}`
+    : `Add Spouse for ${esc(person.firstName)}`;
+  const buttonLabel = spouse && spouse.deceased ? 'Add Current Spouse' : 'Add Spouse';
+
+  return html + `
     <div class="admin-spouse-form" id="admin-spouse-section">
       <form class="profile-form" onsubmit="return false">
         <fieldset>
-          <legend>Add Spouse for ${esc(person.firstName)}</legend>
+          <legend>${legend}</legend>
           <div class="form-row">
             <div class="form-group"><label>First Name *</label><input type="text" id="spouse-first"></div>
             <div class="form-group"><label>Last Name</label><input type="text" id="spouse-last" value="${esc(person.lastName || '')}"></div>
@@ -549,14 +562,13 @@ function renderSpouseSection(person) {
           </div>
           <div class="form-group"><label>Email</label><input type="email" id="spouse-email"></div>
           <div class="form-actions">
-            <button type="button" id="spouse-submit">Add Spouse</button>
+            <button type="button" id="spouse-submit">${buttonLabel}</button>
             <span class="status-msg" id="spouse-status" hidden></span>
           </div>
         </fieldset>
       </form>
     </div>`;
 }
-
 function setupSpouseForm(person) {
   const btn = document.getElementById('spouse-submit');
   if (!btn) return; // Already has a spouse, no form rendered
@@ -586,22 +598,31 @@ function setupSpouseForm(person) {
 
       // Update local cache
       if (result.spousePersonId) {
-        const newSpouse = {
-          personId: result.spousePersonId,
+        const spousePersonId = result.spousePersonId;
+        const spousePatch = {
+          personId: spousePersonId,
           firstName,
           lastName: document.getElementById('spouse-last').value.trim() || person.lastName,
           spouseId: person.personId,
+          parentId: null,
           generation: person.generation,
           branch: person.branch,
           deceased: false,
+          birthday: document.getElementById('spouse-birthday').value,
+          cell: document.getElementById('spouse-cell').value.trim(),
+          email: document.getElementById('spouse-email').value.trim(),
         };
-        allPeople.push(newSpouse);
-        peopleById[newSpouse.personId] = newSpouse;
-        person.spouseId = result.spousePersonId;
+        const existingSpouse = peopleById[spousePersonId];
+        if (existingSpouse) {
+          Object.assign(existingSpouse, spousePatch);
+        } else {
+          allPeople.push(spousePatch);
+          peopleById[spousePersonId] = spousePatch;
+        }
+        person.spouseId = spousePersonId;
         peopleById[person.personId] = person;
         selectedPerson = person;
       }
-
       // Re-render to show the spouse info instead of the form
       setTimeout(() => renderPersonEditor(), 1000);
     } catch (err) {

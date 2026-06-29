@@ -102,8 +102,10 @@ function restoreViews() {
         </div>
       </div>
       <div class="directory-filters print-hide">
-        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn active" data-filter="all">Households</button>
         <button class="filter-btn" data-filter="branch">By Branch</button>
+        <button class="filter-btn" data-filter="individual-alpha">Individuals A-Z</button>
+        <button class="filter-btn" data-filter="individual-age">Individuals by Age</button>
         <button class="filter-btn" data-filter="upcoming">Birthdays</button>
         <span class="legend-note">✝ = deceased</span>
       </div>

@@ -478,44 +478,81 @@ function handleAddSpouse(body) {
   }
   if (!targetSheetRow) return { error: 'Person not found.' };
 
-  // Check they don't already have a spouse
-  if (targetRow[COL.SPOUSE_ID - 1]) {
-    return { error: str(targetRow[COL.FIRST_NAME - 1]) + ' already has a spouse linked.' };
-  }
-
-  // Get next PersonID
-  var maxId = 0;
-  for (var j = 1; j < data.length; j++) {
-    var pid = parseInt(data[j][COL.PERSON_ID - 1]) || 0;
-    if (pid > maxId) maxId = pid;
-  }
-  var newPersonId = maxId + 1;
-
-  // Use existing person's info for defaults
   var targetGen = parseInt(targetRow[COL.GENERATION - 1]) || 0;
   var targetBranch = str(targetRow[COL.BRANCH - 1]);
   var targetLastName = str(targetRow[COL.LAST_NAME - 1]);
+  var requestedFirstName = body.firstName.trim();
+  var requestedLastName = (body.lastName || targetLastName).trim();
 
-  // Build new spouse row
-  var newRow = [];
-  for (var c = 0; c < 20; c++) newRow.push('');
-  newRow[COL.PERSON_ID - 1]  = newPersonId;
-  newRow[COL.FIRST_NAME - 1] = body.firstName.trim();
-  newRow[COL.LAST_NAME - 1]  = (body.lastName || targetLastName).trim();
-  newRow[COL.BIRTHDAY - 1]   = body.birthday || '';
-  newRow[COL.SPOUSE_ID - 1]  = parseInt(targetPersonId); // Link to existing person
-  newRow[COL.GENERATION - 1] = targetGen;
-  newRow[COL.BRANCH - 1]     = targetBranch;
-  // ParentID left blank — married-in spouse
-  if (body.phone)   newRow[COL.PHONE - 1]   = body.phone;
-  if (body.cell)    newRow[COL.CELL - 1]    = body.cell;
-  if (body.email)   newRow[COL.EMAIL - 1]   = body.email;
-  if (body.address) newRow[COL.ADDRESS - 1] = body.address;
-  if (body.city)    newRow[COL.CITY - 1]    = body.city;
-  if (body.state)   newRow[COL.STATE - 1]   = body.state;
-  if (body.zip)     newRow[COL.ZIP - 1]     = body.zip;
+  var existingSpouseId = String(targetRow[COL.SPOUSE_ID - 1] || '');
+  var previousSpouseSheetRow = null;
+  var previousSpouseRow = null;
+  var previousSpouseName = '';
 
-  sheet.appendRow(newRow);
+  if (existingSpouseId) {
+    for (var s = 1; s < data.length; s++) {
+      if (String(data[s][COL.PERSON_ID - 1]) === existingSpouseId) {
+        previousSpouseSheetRow = s + 1;
+        previousSpouseRow = data[s];
+        break;
+      }
+    }
+
+    if (!previousSpouseRow) {
+      return { error: 'Existing spouse link points to a missing person. Ask an admin to repair the SpouseID before adding another spouse.' };
+    }
+
+    var previousSpouseDeceased = str(previousSpouseRow[COL.DECEASED - 1]).toUpperCase() === 'Y';
+    previousSpouseName = (str(previousSpouseRow[COL.FIRST_NAME - 1]) + ' ' + str(previousSpouseRow[COL.LAST_NAME - 1])).trim();
+    if (!previousSpouseDeceased) {
+      return { error: str(targetRow[COL.FIRST_NAME - 1]) + ' already has a living spouse linked: ' + previousSpouseName + '. Mark that spouse deceased/divorced, or clear the bad SpouseID before adding another current spouse.' };
+    }
+  }
+
+  var reusable = findReusableSpouseCandidate(data, targetPersonId, requestedFirstName, requestedLastName);
+  var newPersonId = null;
+  var reusedExistingPerson = false;
+
+  if (reusable) {
+    newPersonId = reusable.personId;
+    reusedExistingPerson = true;
+    updateExistingSpouseRow(sheet, reusable.sheetRow, body, requestedFirstName, requestedLastName, targetPersonId, targetGen, targetBranch);
+  } else {
+    // Get next PersonID
+    var maxId = 0;
+    for (var j = 1; j < data.length; j++) {
+      var pid = parseInt(data[j][COL.PERSON_ID - 1]) || 0;
+      if (pid > maxId) maxId = pid;
+    }
+    newPersonId = maxId + 1;
+
+    // Build new spouse row
+    var newRow = [];
+    for (var c = 0; c < 20; c++) newRow.push('');
+    newRow[COL.PERSON_ID - 1]  = newPersonId;
+    newRow[COL.FIRST_NAME - 1] = requestedFirstName;
+    newRow[COL.LAST_NAME - 1]  = requestedLastName;
+    newRow[COL.BIRTHDAY - 1]   = body.birthday || '';
+    newRow[COL.SPOUSE_ID - 1]  = parseInt(targetPersonId); // Link to existing person
+    newRow[COL.GENERATION - 1] = targetGen;
+    newRow[COL.BRANCH - 1]     = targetBranch;
+    // ParentID left blank - married-in spouse
+    if (body.phone)   newRow[COL.PHONE - 1]   = body.phone;
+    if (body.cell)    newRow[COL.CELL - 1]    = body.cell;
+    if (body.email)   newRow[COL.EMAIL - 1]   = body.email;
+    if (body.address) newRow[COL.ADDRESS - 1] = body.address;
+    if (body.city)    newRow[COL.CITY - 1]    = body.city;
+    if (body.state)   newRow[COL.STATE - 1]   = body.state;
+    if (body.zip)     newRow[COL.ZIP - 1]     = body.zip;
+
+    sheet.appendRow(newRow);
+  }
+
+  // A deceased spouse can stay in People for history, but the active SpouseID moves to the new spouse.
+  // Clear the deceased spouse's reverse link so future edits do not treat them as the active spouse.
+  if (previousSpouseSheetRow) {
+    sheet.getRange(previousSpouseSheetRow, COL.SPOUSE_ID).setValue('');
+  }
 
   // Link the existing person back to the new spouse
   sheet.getRange(targetSheetRow, COL.SPOUSE_ID).setValue(newPersonId);
@@ -526,21 +563,68 @@ function handleAddSpouse(body) {
      'TargetPersonID', 'TargetName', 'Field', 'OldValue', 'NewValue']);
   var clId = getLastId(clSheet, CL.CHANGE_ID) + 1;
   var now = new Date().toISOString();
-  var targetName = str(targetRow[COL.FIRST_NAME - 1]) + ' ' + targetLastName;
-  var spouseName = body.firstName.trim() + ' ' + (body.lastName || targetLastName).trim();
+  var targetName = (str(targetRow[COL.FIRST_NAME - 1]) + ' ' + targetLastName).trim();
+  var spouseName = (requestedFirstName + ' ' + requestedLastName).trim();
+  var oldValue = previousSpouseName ? 'Previous deceased spouse: ' + previousSpouseName : '';
+  var newValue = (reusedExistingPerson ? 'Re-linked existing person as spouse of ' : 'Added as spouse of ') + targetName;
   clSheet.appendRow([
     clId, now, me.personId, me.firstName + ' ' + me.lastName,
     newPersonId, spouseName, 'add_spouse',
-    '', 'Added as spouse of ' + targetName,
+    oldValue, newValue,
   ]);
 
   return {
     success: true,
     spousePersonId: newPersonId,
+    reusedExistingPerson: reusedExistingPerson,
+    replacedDeceasedSpouseName: previousSpouseName,
     message: spouseName + ' has been added as spouse of ' + targetName + '.',
   };
 }
 
+function findReusableSpouseCandidate(data, targetPersonId, firstName, lastName) {
+  var target = String(targetPersonId);
+  var first = normalizeNamePart(firstName);
+  var last = normalizeNamePart(lastName);
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var parentId = String(row[COL.PARENT_ID - 1] || '');
+    if (parentId !== target) continue;
+    if (row[COL.SPOUSE_ID - 1]) continue;
+    if (str(row[COL.DECEASED - 1]).toUpperCase() === 'Y') continue;
+    if (normalizeNamePart(row[COL.FIRST_NAME - 1]) !== first) continue;
+    if (normalizeNamePart(row[COL.LAST_NAME - 1]) !== last) continue;
+
+    return {
+      sheetRow: i + 1,
+      personId: parseInt(row[COL.PERSON_ID - 1]),
+    };
+  }
+
+  return null;
+}
+
+function updateExistingSpouseRow(sheet, sheetRow, body, firstName, lastName, targetPersonId, targetGen, targetBranch) {
+  sheet.getRange(sheetRow, COL.FIRST_NAME).setValue(firstName);
+  sheet.getRange(sheetRow, COL.LAST_NAME).setValue(lastName);
+  sheet.getRange(sheetRow, COL.SPOUSE_ID).setValue(parseInt(targetPersonId));
+  sheet.getRange(sheetRow, COL.PARENT_ID).setValue('');
+  sheet.getRange(sheetRow, COL.GENERATION).setValue(targetGen);
+  sheet.getRange(sheetRow, COL.BRANCH).setValue(targetBranch);
+  if (body.birthday) sheet.getRange(sheetRow, COL.BIRTHDAY).setValue(body.birthday);
+  if (body.phone)   sheet.getRange(sheetRow, COL.PHONE).setValue(body.phone);
+  if (body.cell)    sheet.getRange(sheetRow, COL.CELL).setValue(body.cell);
+  if (body.email)   sheet.getRange(sheetRow, COL.EMAIL).setValue(body.email);
+  if (body.address) sheet.getRange(sheetRow, COL.ADDRESS).setValue(body.address);
+  if (body.city)    sheet.getRange(sheetRow, COL.CITY).setValue(body.city);
+  if (body.state)   sheet.getRange(sheetRow, COL.STATE).setValue(body.state);
+  if (body.zip)     sheet.getRange(sheetRow, COL.ZIP).setValue(body.zip);
+}
+
+function normalizeNamePart(value) {
+  return str(value).trim().toLowerCase();
+}
 function handleRemovePerson(body) {
   if (!body.personId) return { error: 'personId is required.' };
 

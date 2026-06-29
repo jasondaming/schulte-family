@@ -61,12 +61,13 @@ export function updateDirectory(people) {
 function render() {
   const query = document.getElementById('search-input').value.toLowerCase().trim();
   const container = document.getElementById('directory-list');
+  const isIndividualFilter = currentFilter === 'individual-alpha' || currentFilter === 'individual-age';
 
   // Group people into households (person + spouse shown together)
   let households = buildHouseholds();
 
-  // Filter
-  if (query) {
+  // Filter household views
+  if (query && !isIndividualFilter) {
     households = households.filter(h => {
       const memberFields = h.members.map(m =>
         [m.firstName, m.lastName, m.city, m.state, m.zip, m.email, m.cell, m.phone, m.address, m.branch]
@@ -88,7 +89,9 @@ function render() {
     return;
   }
 
-  if (currentFilter === 'branch') {
+  if (isIndividualFilter) {
+    renderIndividuals(container, query, currentFilter);
+  } else if (currentFilter === 'branch') {
     renderByBranch(container, households);
   } else {
     container.innerHTML = households.length
@@ -104,7 +107,7 @@ function render() {
     });
   });
 
-  // Attach child link handlers — scroll to their card or go to tree
+  // Attach child link handlers - scroll to their card or go to tree
   container.querySelectorAll('.child-link').forEach(link => {
     link.addEventListener('click', e => {
       e.preventDefault();
@@ -129,7 +132,7 @@ function render() {
           setTimeout(() => familyCard.classList.remove('card-highlight'), 2000);
         }
       } else {
-        // No card in directory — go to tree
+        // No card in directory - go to tree
         navigateToPerson(personId);
       }
     });
@@ -448,6 +451,94 @@ function parseDate(dateStr) {
   return isNaN(d) ? null : d;
 }
 
+function renderIndividuals(container, query, mode) {
+  const people = individualPeople(query, mode);
+  container.innerHTML = people.length
+    ? people.map(personCard).join('')
+    : '<p class="loading">No individuals found.</p>';
+}
+
+function individualPeople(query, mode) {
+  const q = (query || '').toLowerCase();
+  const people = allPeople.filter(p => {
+    if (p.deceased) return false;
+    const spouse = p.spouseId ? peopleById[p.spouseId] : null;
+    const fields = [
+      p.firstName, p.lastName, p.city, p.state, p.zip, p.email, p.cell, p.phone, p.address, p.branch,
+      spouse && spouse.firstName, spouse && spouse.lastName,
+    ].filter(Boolean).join(' ').toLowerCase();
+    return !q || fields.includes(q);
+  });
+
+  if (mode === 'individual-age') {
+    people.sort((a, b) => {
+      const aBirth = birthTime(a);
+      const bBirth = birthTime(b);
+      if (aBirth !== null && bBirth !== null && aBirth !== bBirth) return aBirth - bBirth;
+      if (aBirth !== null && bBirth === null) return -1;
+      if (aBirth === null && bBirth !== null) return 1;
+      return comparePeopleByName(a, b);
+    });
+  } else {
+    people.sort(comparePeopleByName);
+  }
+
+  return people;
+}
+
+function comparePeopleByName(a, b) {
+  const aName = `${a.lastName || ''} ${a.firstName || ''}`.trim().toLowerCase();
+  const bName = `${b.lastName || ''} ${b.firstName || ''}`.trim().toLowerCase();
+  const byName = aName.localeCompare(bName);
+  return byName || numericPersonId(a) - numericPersonId(b);
+}
+
+function personCard(person) {
+  const spouse = person.spouseId ? peopleById[person.spouseId] : null;
+  const fullName = `${esc(person.firstName)} ${esc(person.lastName || '')}`.trim();
+  const age = ageOnToday(person.birthday);
+  const birthday = person.birthday ? fmtBday(person.birthday) : '';
+  const address = [person.address, [person.city, person.state].filter(Boolean).join(', '), person.zip]
+    .filter(Boolean).join(', ');
+  const spouseName = spouse
+    ? `${spouse.firstName || ''} ${spouse.lastName || ''}${spouse.deceased ? ' (dec.)' : ''}`.trim()
+    : '';
+
+  let html = `<div class="family-card individual-card${hasPersonBirthdaySoon(person) ? ' birthday-soon' : ''}">`;
+  html += '<div class="card-header">';
+  html += `<span class="card-name">${fullName}</span>`;
+  html += '<span class="card-header-right">';
+  html += `<a class="card-tree-link" href="#" data-person-id="${person.personId}" title="View in Family Tree">&#x1f333;</a>`;
+  if (person.branch) html += `<span class="card-branch">${esc(person.branch)}</span>`;
+  html += '</span></div>';
+
+  if (age !== null || birthday) {
+    html += `<div class="card-detail"><span class="label">Age</span> ${age !== null ? age : 'Unknown'}${birthday ? ` <span class="text-muted">(${birthday})</span>` : ''}</div>`;
+  }
+  if (spouseName) html += `<div class="card-detail"><span class="label">Spouse</span> ${esc(spouseName)}</div>`;
+  if (address) html += `<div class="card-detail"><span class="label">Addr</span> ${esc(address)}</div>`;
+  if (person.phone) html += `<div class="card-detail"><span class="label">Home</span> <a href="tel:${person.phone}">${esc(person.phone)}</a></div>`;
+  if (person.cell) html += `<div class="card-detail"><span class="label">Cell</span> <a href="tel:${person.cell}">${esc(person.cell)}</a></div>`;
+  if (person.email) html += `<div class="card-detail"><span class="label">Email</span> <a href="mailto:${person.email}">${esc(person.email)}</a></div>`;
+
+  html += '</div>';
+  return html;
+}
+
+function ageOnToday(dateStr) {
+  const bd = parseDate(dateStr);
+  if (!bd) return null;
+  const today = startOfToday();
+  let age = today.getFullYear() - bd.getFullYear();
+  const birthdayThisYear = new Date(today.getFullYear(), bd.getMonth(), bd.getDate());
+  if (birthdayThisYear > today) age -= 1;
+  return age >= 0 ? age : null;
+}
+
+function hasPersonBirthdaySoon(person) {
+  const d = daysUntilBirthday(person.birthday);
+  return d !== null && d <= 30;
+}
 function renderByBranch(container, households) {
   const groups = {};
   for (const h of households) {
