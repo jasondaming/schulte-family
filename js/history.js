@@ -87,7 +87,7 @@ function renderHistory() {
       <section class="history-hero">
         <div>
           <p class="history-kicker">Schulte Family Camporee</p>
-          <h2>Reunion History</h2>
+          <h2>Camporee History</h2>
           <p class="history-lede">A running record of Camporee locations and shared photo albums from 1995 through 2026.</p>
         </div>
         <div class="history-stats" aria-label="Camporee summary">

@@ -1,5 +1,5 @@
 /**
- * Reunion page — 2026 Schulte Family Camporee.
+ * Camporee page — 2026 Schulte Family Camporee.
  *
  * Sections:
  *   info     — event title, date, location, welcome note
@@ -25,6 +25,7 @@ let foodSignups  = [];   // potluck signups from everyone
 
 const FOOD_CATEGORIES = ['Main Dish', 'Side Dish', 'Dessert', 'Drinks', 'Snacks', 'Other'];
 const CAMPOREE_SCHEDULE_PDF = 'CAMPOREE%20SCHEDULE%202026%20-%20Google%20Docs.pdf';
+const CAMPOREE_CABIN_LIST_PDF = 'Cabin%20List%20-%20Google%20Docs.pdf';
 const CAMPOREE_POSTER_IMAGE = '2026%20Camporee.jpg';
 const VAL_EMAIL = 'vawashburn1979@gmail.com';
 const VAL_PHONE = '502-525-1979';
@@ -43,35 +44,30 @@ const CAMPOREE_DEFAULTS = {
 
 const CAMPOREE_ACTION_ITEMS = [
   {
-    title: 'Saturday dinner head count',
-    body: "Email Val Washburn ASAP with your count for Saturday night's catered meal.",
-    links: [{ label: 'Email Val', href: `mailto:${VAL_EMAIL}?subject=Saturday%20Dinner%20Head%20Count` }],
-  },
-  {
-    title: 'Bring cornhole boards',
-    body: 'Extra boards are welcome. If you can bring a set, email or text Val so the activity team knows what will be on site.',
+    title: 'Review latest PDFs',
+    body: 'The schedule and cabin list were updated June 29. Check your cabin assignment and contact Val ASAP with any issues.',
     links: [
-      { label: 'Email Val', href: `mailto:${VAL_EMAIL}?subject=Cornhole%20Boards` },
+      { label: 'Schedule PDF', href: CAMPOREE_SCHEDULE_PDF, newTab: true },
+      { label: 'Cabin list PDF', href: CAMPOREE_CABIN_LIST_PDF, newTab: true },
       { label: 'Text Val', href: 'sms:5025251979' },
     ],
   },
   {
-    title: 'Order Camporee gear',
-    body: 'The store closes at 11:59 PM on Sunday, June 7, 2026. Use the 2026 Schulte Camporee Store link from the email.',
+    title: 'Craft signup',
+    body: 'If you still want to reserve a craft spot, do that ASAP. Search the earlier craft email or reach out if you need the details resent.',
+    links: [
+      { label: 'Text Paige', href: 'sms:8123930500' },
+      { label: 'Email Paige', href: `mailto:${PAIGE_EMAIL}?subject=Camporee%20Craft%20Signup` },
+    ],
   },
   {
-    title: 'Golf RSVP',
-    body: 'Text Kevin Schulte by Sunday, June 7, 2026 to reserve your Friday morning golf slot. Include your name.',
-    links: [{ label: 'Text Kevin', href: 'sms:5138858851' }],
-  },
-  {
-    title: 'Paint Party signup',
-    body: 'Pay or email Angela by June 26 with your name and craft choice: HOME, 4THOFJULY, and/or KID.',
-    links: [{ label: 'Email Angela', href: `mailto:${ANGELA_EMAIL}?subject=Camporee%20Paint%20Party` }],
+    title: 'Camporee gear pickup',
+    body: 'Val checks in Wednesday, July 1 and will take remaining shirts and gear to Cabin 22. Text Val if you want to pick yours up before then.',
+    links: [{ label: 'Text Val', href: 'sms:5025251979' }],
   },
   {
     title: 'Thursday setup help',
-    body: 'Help is needed around 10:00 AM-ish Thursday for the tent, tables, and chairs.',
+    body: 'Setup starts Thursday, July 2 at 10:00 AM. A cooler with cold beverages will be available.',
   },
   {
     title: 'Bring tip cash',
@@ -83,7 +79,6 @@ const CAMPOREE_ACTION_ITEMS = [
     links: [{ label: VAL_EMAIL, href: `mailto:${VAL_EMAIL}?subject=Camporee%20Activity` }],
   },
 ];
-
 const CAMPOREE_FEATURED_DETAILS = [
   {
     title: 'Golf Outing',
@@ -91,7 +86,7 @@ const CAMPOREE_FEATURED_DETAILS = [
     facts: [
       'Where: Christmas Lake Golf Course.',
       'Cost: $58.',
-      `RSVP or questions: text Kevin Schulte at ${KEVIN_PHONE} by Sunday, June 7. Include your name.`,
+      `Questions: text Kevin Schulte at ${KEVIN_PHONE}.`,
     ],
     links: [{ label: 'Text Kevin', href: 'sms:5138858851' }],
   },
@@ -103,7 +98,7 @@ const CAMPOREE_FEATURED_DETAILS = [
       'Crafts: HOME, 4THOFJULY, and kid craft pack.',
       'Cost: $30 for Home or July 4th craft; $10 for kid craft pack.',
       `Payment: Venmo @EppersonAng or email Angela at ${ANGELA_EMAIL} for other payment options.`,
-      'Deadline: June 26.',
+      'Reserve ASAP if you still want a craft spot.',
       `Questions: text or email Paige Goffinet at ${PAIGE_PHONE} or ${PAIGE_EMAIL}.`,
     ],
     links: [
@@ -114,30 +109,25 @@ const CAMPOREE_FEATURED_DETAILS = [
   },
   {
     title: 'Camporee Gear',
-    meta: 'Store closes Sunday, June 7 at 11:59 PM',
+    meta: 'Pickup before Wednesday, July 1 or at Cabin 22',
     facts: [
-      'Options include t-shirts, onesies, tank tops, hoodies, trucker hats, and personalized tumblers.',
-      'Theme: 4th of July / Standard Station, with blue and red choices on some items.',
-      'At checkout, enter your address first; the next step gives the pickup option.',
-      'Delivery: ship to your address or choose Pickup at Reunion.',
-      'Pickup at Reunion: Cabin 22 when you arrive.',
-      'Early pickup: Painter homestead from June 27-30. Anything still at the barn the morning of July 1 goes to Cabin 22.',
+      'Shirts are heathered light blue and red.',
+      'If you did not order shirts, pack something red or blue and you will fit right in.',
+      'Val checks in Wednesday, July 1; all remaining gear at the barn will go with her to Cabin 22.',
+      `Early pickup: text Val at ${VAL_PHONE}.`,
     ],
   },
 ];
-
 const CAMPOREE_MEAL_NOTES = [
   'Thursday dinner: Oink Smokehouse and Bee\'s Original Dawgs food trucks. Tips appreciated. Desserts: Cindy, Kathy, Connie.',
   'Friday dinner: Jimador, Taylor Made, and Champ Dawgs food trucks. Tips appreciated. Desserts: Herb, John, Don.',
-  'Saturday dinner: Sanders Catering after Mass with fried chicken, corn, green beans, mashed potatoes, mac and cheese, and rolls. Desserts: Sylvia, Doris, Janice, Phyllis, Paul.',
-  `Saturday catered meal head count goes to Val Washburn at ${VAL_EMAIL}.`,
+  'Saturday dinner: Sanders Catering right after Mass with fried chicken, corn, green beans, mashed potatoes, mac and cheese, and rolls. Desserts: Sylvia, Doris, Janice, Phyllis, Paul.',
 ];
-
 const CAMPOREE_SCHEDULE = [
   {
     day: 'Thursday, July 2',
     items: [
-      ['10:00 AM-ish', 'Setup help needed for the tent, tables, and chairs.'],
+      ['10:00 AM', 'Setup help needed for the tent, tables, and chairs. Cold beverages will be available.'],
       ['4:00 PM', 'Check-in begins after 4:00 PM. Instructions were sent by email.'],
       ['5:30 PM', "Dinner: Oink Smokehouse and Bee's Original Dawgs food trucks. Tips appreciated. Desserts: Cindy, Kathy, Connie."],
       ['6:30-8:00 PM', 'Board/card games at the pavilion for kids, teens, and the young at heart.'],
@@ -166,11 +156,12 @@ const CAMPOREE_SCHEDULE = [
     items: [
       ['8:30 AM-9:00 PM', 'Pool open.'],
       ['10:00 AM-1:00 PM', 'Volleyball (Jason Daming).'],
-      ['12:30-2:30 PM', 'Euchre (Katie Kissel).'],
+      ['12:30 PM', 'Snowcones (Vicki Summerlot).'],
       ['3:30 PM', 'Large family picture (Randy Daming). Subject to change due to weather.'],
       ['4:30 PM', 'Mass (Fr. Ron).'],
-      ['5:30 PM', 'Dinner after Mass provided by Sanders Catering: fried chicken, corn, green beans, mashed potatoes, mac and cheese, and roll.'],
-      ['7:00-9:00 PM', 'Adult Horse Races (Doug Young).'],
+      ['5:30 PM', 'Dinner after Mass provided by Sanders Catering: fried chicken, corn, green beans, mashed potatoes, mac and cheese, and roll. Desserts: Sylvia, Doris, Janice, Phyllis, Paul.'],
+      ['7:00-8:30 PM', 'Euchre Tournament (Katie Kissel).'],
+      ['8:30-10:00 PM', 'Adult Horse Races (Doug Young).'],
     ],
   },
   {
@@ -180,15 +171,14 @@ const CAMPOREE_SCHEDULE = [
     ],
   },
 ];
-
 const CAMPOREE_BRING_ITEMS = [
   'Cash for food vendor tips and the Friday DJ tip jar.',
   'Cornhole boards, if you can bring a set. Contact Val first.',
-  'Comfortable clothes for games, pool time, yoga, volleyball, golf, and the family picture.',
+  'Red or blue shirts or Camporee gear for the family picture.',
+  'Comfortable clothes for games, pool time, yoga, volleyball, golf, and hot weather.',
   'Any supplies needed for an activity you are leading.',
-  'Camporee gear, if ordered before the June 7 deadline.',
+  'Sunscreen, deodorant, water bottles, and anything else that helps with heat.',
 ];
-
 const CAMPOREE_OTHER_INFO = [
   "No fireworks are allowed at Santa's Cottages. Holiday World fireworks may be viewable from outside the park, and some community fireworks may be visible nearby.",
   'Golf carts are allowed for transporting older family members. Kids are not allowed to drive golf carts.',
@@ -203,7 +193,7 @@ export async function initReunion(session) {
   isAdmin         = !!session.isAdmin;
 
   const container = document.getElementById('reunion-view');
-  container.innerHTML = `<div class="loading"><div class="spinner"></div><p>Loading reunion info…</p></div>`;
+  container.innerHTML = `<div class="loading"><div class="spinner"></div><p>Loading camporee info…</p></div>`;
 
   try {
     const data = await fetchReunion(sessionToken);
@@ -252,6 +242,7 @@ function render() {
         ${welcomeNote ? `<p class="reunion-welcome" id="r-welcome">${esc(welcomeNote)}</p>` : ''}
         <div class="reunion-hero-actions">
           <a class="reunion-hero-link" href="${CAMPOREE_SCHEDULE_PDF}" target="_blank" rel="noopener">View schedule PDF</a>
+          <a class="reunion-hero-link" href="${CAMPOREE_CABIN_LIST_PDF}" target="_blank" rel="noopener">View cabin list</a>
           ${isAdmin ? `<button class="btn-secondary reunion-edit-info" id="edit-info-btn">✏️ Edit Event Details</button>` : ''}
         </div>
       </div>
@@ -260,14 +251,14 @@ function render() {
     <div class="reunion-body">
       <section class="reunion-section" id="section-action">
         <div class="reunion-section-header">
-          <h2>Action Needed</h2>
+          <h2>Latest Updates</h2>
         </div>
         ${renderActionItems()}
       </section>
 
       <section class="reunion-section" id="section-featured-details">
         <div class="reunion-section-header">
-          <h2>Golf, Paint Party, and Gear</h2>
+          <h2>Activities and Gear</h2>
         </div>
         ${renderFeaturedDetails()}
       </section>
@@ -444,10 +435,12 @@ function renderLinks(links = []) {
   if (!links || !links.length) return '';
   return `
     <div class="inline-link-row">
-      ${links.map(link => `<a href="${esc(link.href)}">${esc(link.label)}</a>`).join('')}
+      ${links.map(link => {
+        const attrs = link.newTab ? ' target="_blank" rel="noopener"' : '';
+        return `<a href="${esc(link.href)}"${attrs}>${esc(link.label)}</a>`;
+      }).join('')}
     </div>`;
 }
-
 function renderScheduleItem(item) {
   return `
     <div class="schedule-item" data-id="${item.id}">
