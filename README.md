@@ -8,7 +8,7 @@ A private family contact directory and family tree, hosted on GitHub Pages with 
 - **Data** (private Google Sheet) — person-centric format, one row per person
 - **Login** — family members sign in with first name + birthday
 - **Edit** — users can update info for themselves, their spouse, and their children
-- **Admin** — admins can edit anyone, add/remove people, and manage reunion info
+- **Admin** — admins can edit anyone, add/remove people, and view changelog
 
 ## Data Format
 
@@ -38,7 +38,6 @@ Generation 0 is the root couple. Their children (Generation 1) form the top-leve
 - **Edit Profile** — update name, contact info, birthday, anniversary for yourself, spouse, and children
 - **Add/Remove People** — add children, add spouse, record death or divorce
 - **Life Events** — record births, deaths, marriages, moves, and other milestones
-- **Reunion Page** — event info, schedule, and food signup for family gatherings
 - **Admin Panel** — search/edit any person, add people under any parent, add spouses, view changelog
 - **Deceased handling** — deceased shown with cross (✝) and greyed styling, kept in records
 - **Different last names** — couples with different surnames displayed correctly
@@ -80,7 +79,7 @@ This creates a CSV with all people and relationships pre-linked.
 4. **Deploy > New deployment > Web app** (Execute as: Me, Access: Anyone)
 5. Copy the deployment URL
 
-The script auto-creates additional sheet tabs as needed: LifeEvents, Changelog, Reunion, FoodSignup.
+The script auto-creates additional sheet tabs as needed: LifeEvents and Changelog.
 
 ### Step 4: Set up the website
 
@@ -97,8 +96,6 @@ The script auto-creates additional sheet tabs as needed: LifeEvents, Changelog, 
 | People | Main directory (one row per person) | No |
 | LifeEvents | Birth, death, marriage records | Yes |
 | Changelog | Audit log of all edits | Yes |
-| Reunion | Admin-managed event info/schedule | Yes |
-| FoodSignup | Potluck dish signups | Yes |
 
 ## Tech Stack
 

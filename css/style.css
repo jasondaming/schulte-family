@@ -1288,7 +1288,6 @@ nav {
   #directory-list,
   #tree-view,
   #profile-view,
-  #reunion-view,
   #admin-view,
   #login-screen {
     display: none !important;
@@ -1384,112 +1383,12 @@ nav {
 
   a { color: inherit; text-decoration: none; }
 }
-/* === Reunion Page === */
-
-.reunion-hero {
-  background: linear-gradient(135deg, #b22234 0%, #3c3b6e 100%);
-  color: white;
-  border-radius: var(--radius);
-  margin-bottom: 1.75rem;
-  overflow: hidden;
-}
-
-.reunion-hero-inner {
-  padding: 2rem 2rem 1.75rem;
-  text-align: center;
-  position: relative;
-}
-
-.reunion-flag {
-  font-size: 3rem;
-  margin-bottom: 0.5rem;
-  line-height: 1;
-}
-
-.reunion-title {
-  font-size: 1.9rem;
-  font-weight: 800;
-  margin-bottom: 0.5rem;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.25);
-}
-
-.reunion-meta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  font-size: 1rem;
-  opacity: 0.9;
-  flex-wrap: wrap;
-  margin-bottom: 0.75rem;
-}
-
-.reunion-date { font-weight: 600; }
-.reunion-sep  { opacity: 0.5; }
-.reunion-loc  {
-  color: inherit;
-  font-weight: 400;
-  text-decoration: none;
-  border-bottom: 1px solid rgba(255,255,255,0.35);
-}
-.reunion-loc:hover {
-  border-bottom-color: rgba(255,255,255,0.8);
-}
-
-.reunion-welcome {
-  font-size: 0.95rem;
-  opacity: 0.85;
-  max-width: 560px;
-  margin: 0.5rem auto 0.75rem;
-  line-height: 1.6;
-  font-style: italic;
-}
-
-.reunion-edit-info {
-  background: rgba(255,255,255,0.15) !important;
-  border-color: rgba(255,255,255,0.4) !important;
-  color: white !important;
-  margin-top: 0.5rem;
-}
-.reunion-edit-info:hover {
-  background: rgba(255,255,255,0.25) !important;
-}
-
-.reunion-hero-actions {
-  display: flex;
-  justify-content: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-top: 0.85rem;
-}
-.reunion-hero-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  padding: 0.35rem 0.85rem;
-  border: 1px solid rgba(255,255,255,0.45);
-  border-radius: var(--radius);
-  color: white;
-  background: rgba(255,255,255,0.14);
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-decoration: none;
-}
-.reunion-hero-link:hover {
-  background: rgba(255,255,255,0.25);
-}
-
-.reunion-poster-section,
+/* === Camporee History === */
 .history-poster-section {
   display: flex;
   justify-content: center;
-  margin: 0 0 1.5rem;
+  margin: 0;
 }
-.history-poster-section {
-  margin-bottom: 0;
-}
-.reunion-poster-section a,
 .history-poster-section a {
   display: block;
   width: min(100%, 526px);
@@ -1499,362 +1398,11 @@ nav {
   background: var(--surface);
   box-shadow: var(--shadow-lg);
 }
-.reunion-poster-section img,
 .history-poster-section img {
   display: block;
   width: 100%;
   height: auto;
 }
-/* Info editor (admin) */
-.info-editor {
-  background: rgba(0,0,0,0.2);
-  padding: 1rem 1.5rem 1.5rem;
-}
-.info-editor-inner {
-  max-width: 560px;
-  margin: 0 auto;
-  border-color: rgba(255,255,255,0.2);
-  background: rgba(255,255,255,0.95);
-}
-.info-editor-inner h3 {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--primary-dark);
-  margin-bottom: 0.75rem;
-}
-
-/* Body */
-.reunion-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.reunion-section {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.25rem 1.5rem;
-  box-shadow: var(--shadow);
-}
-
-.reunion-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.reunion-section-header h2 {
-  font-size: 1.15rem;
-  color: var(--primary-dark);
-  margin: 0;
-}
-.section-subtitle {
-  margin-top: 0.15rem;
-  font-size: 0.84rem;
-  color: var(--text-muted);
-}
-
-/* Camporee summary sections */
-.action-grid,
-.detail-grid {
-  display: grid;
-  gap: 0.75rem;
-}
-.action-grid {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-.detail-grid {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-}
-.action-card,
-.detail-card {
-  border: 1px solid #ececec;
-  border-radius: var(--radius);
-  background: #fafafa;
-  padding: 0.85rem 0.95rem;
-}
-.action-card h3,
-.detail-card h3 {
-  margin: 0 0 0.3rem;
-  font-size: 0.98rem;
-  color: var(--primary-dark);
-}
-.action-card p,
-.detail-card p {
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--text);
-}
-.detail-card-header {
-  padding-bottom: 0.55rem;
-  margin-bottom: 0.6rem;
-  border-bottom: 1px solid #ececec;
-}
-.detail-card-header p {
-  color: var(--accent);
-  font-weight: 700;
-}
-.detail-facts {
-  margin: 0;
-  padding-left: 1.15rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-.detail-facts li {
-  font-size: 0.86rem;
-  color: var(--text);
-}
-.inline-link-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  margin-top: 0.7rem;
-}
-.inline-link-row a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 0.25rem 0.65rem;
-  border: 1px solid var(--primary);
-  border-radius: var(--radius);
-  color: var(--primary);
-  background: var(--surface);
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-decoration: none;
-}
-.inline-link-row a:hover {
-  background: var(--primary-light);
-}
-
-.reunion-callout {
-  display: flex;
-  align-items: baseline;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.8rem;
-  padding: 0.7rem 0.85rem;
-  border: 1px solid #ead7a6;
-  border-radius: var(--radius);
-  background: #fff8e8;
-  color: #6f5212;
-  font-size: 0.9rem;
-}
-.info-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-.info-list-item {
-  padding: 0.55rem 0.7rem;
-  border: 1px solid #f0f0f0;
-  border-radius: var(--radius);
-  background: #fafafa;
-  font-size: 0.88rem;
-  color: var(--text);
-}
-
-/* Schedule */
-.schedule-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.schedule-day {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-.schedule-day h3 {
-  margin: 0;
-  padding: 0.25rem 0;
-  color: var(--accent);
-  font-size: 0.98rem;
-  border-bottom: 1px solid var(--primary-light);
-}
-.schedule-day-items {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-.schedule-added {
-  margin-top: 0.25rem;
-}
-
-.schedule-item {
-  display: flex;
-  align-items: baseline;
-  gap: 1rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius);
-  border: 1px solid #f0f0f0;
-  flex-wrap: wrap;
-}
-.schedule-default-item,
-.schedule-item:nth-child(odd) { background: #fafafa; }
-
-.schedule-time {
-  font-weight: 700;
-  color: var(--primary-dark);
-  white-space: nowrap;
-  min-width: 80px;
-  font-size: 0.9rem;
-}
-.schedule-activity {
-  flex: 1;
-  font-size: 0.9rem;
-  color: var(--text);
-}
-
-/* Item actions (admin edit/delete) */
-.item-actions {
-  display: flex;
-  gap: 0.25rem;
-  margin-left: auto;
-}
-.item-actions-inline {
-  display: inline-flex;
-  gap: 0.25rem;
-  margin-left: 0.5rem;
-}
-.item-edit-btn,
-.item-delete-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.15rem 0.35rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  opacity: 0.5;
-  transition: opacity 0.15s;
-}
-.item-edit-btn:hover,
-.item-delete-btn:hover { opacity: 1; background: var(--primary-light); }
-
-/* Item / food forms */
-.item-form,
-.food-form {
-  margin: 0.75rem 0;
-  max-width: 600px;
-}
-
-/* Food list */
-.food-category { margin-bottom: 1rem; }
-.food-category h4 {
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--primary);
-  margin-bottom: 0.4rem;
-  border-bottom: 1px solid var(--primary-light);
-  padding-bottom: 0.2rem;
-}
-.food-items { display: flex; flex-direction: column; gap: 0.35rem; }
-.food-item {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  padding: 0.35rem 0.6rem;
-  border-radius: var(--radius);
-  background: #fafafa;
-  border: 1px solid #f0f0f0;
-  flex-wrap: wrap;
-}
-.food-dish {
-  font-weight: 600;
-  font-size: 0.9rem;
-  flex: 1;
-  min-width: 120px;
-}
-.food-who {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-.food-remove-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.1rem;
-  color: var(--text-muted);
-  padding: 0 0.2rem;
-  line-height: 1;
-  opacity: 0.5;
-  transition: opacity 0.15s, color 0.15s;
-  margin-left: auto;
-}
-.food-remove-btn:hover { opacity: 1; color: #c0392b; }
-
-/* Bring list */
-.bring-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-.bring-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.3rem 0.5rem;
-  font-size: 0.9rem;
-  border-radius: 4px;
-  transition: background 0.1s;
-}
-.bring-item:hover { background: var(--primary-light); }
-.bring-bullet {
-  color: var(--primary);
-  font-weight: 700;
-  font-size: 1.1rem;
-  flex-shrink: 0;
-}
-.bring-text { flex: 1; }
-
-/* Primary button */
-.btn-primary {
-  padding: 0.45rem 1rem;
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: var(--radius);
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-primary:hover { background: var(--primary-dark); }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-
-/* Reunion food form selects */
-.food-form select {
-  width: 100%;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 0.95rem;
-  font-family: var(--font);
-  background: var(--surface);
-}
-.food-form select:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
-}
-
-/* Empty state */
-.reunion-empty {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  font-style: italic;
-  padding: 0.5rem 0;
-}
-
-
-/* === Reunion History === */
 .history-page {
   display: flex;
   flex-direction: column;
@@ -1943,9 +1491,6 @@ nav {
   overflow: hidden;
   min-height: 158px;
 }
-.history-item-current {
-  border-color: var(--primary);
-}
 .history-year {
   display: flex;
   align-items: center;
@@ -2018,7 +1563,8 @@ nav {
   color: var(--text-muted);
   font-size: 0.86rem;
 }
-.history-item-actions a {
+.history-item-actions a,
+.history-no-album {
   display: inline-flex;
   align-items: center;
   min-height: 30px;
@@ -2058,13 +1604,6 @@ nav {
   .tc-av { width: 32px; height: 32px; font-size: 0.7rem; }
   .tc-gen0 .tc-av { width: 36px; height: 36px; font-size: 0.8rem; }
   .tree-wrap li { padding: 0 3px; }
-
-  /* Reunion */
-  .reunion-hero-inner { padding: 1.25rem 1rem 1rem; }
-  .reunion-title { font-size: 1.4rem; }
-  .reunion-meta { flex-direction: column; gap: 0.25rem; }
-  .reunion-sep { display: none; }
-  .reunion-section { padding: 1rem; }
   .history-hero { flex-direction: column; align-items: stretch; padding: 1rem; }
   .history-stats { min-width: 0; grid-template-columns: repeat(3, 1fr); }
   .history-layout { max-width: none; }
@@ -2072,12 +1611,6 @@ nav {
   .history-photo { grid-column: 2; min-height: 170px; }
   .history-photo img { min-height: 170px; }
   .history-item-body { grid-column: 2; }
-  .action-grid,
-  .detail-grid { grid-template-columns: 1fr; }
-  .reunion-callout { flex-direction: column; gap: 0.1rem; }
-  .schedule-item { flex-direction: column; gap: 0.25rem; }
-  .schedule-time { min-width: auto; }
-  .inline-link-row a { flex: 1 1 auto; justify-content: center; }
 
   /* Print: single column on small screens */
   @media print {

@@ -75,32 +75,6 @@ const CL = {
 
 const TOKEN_SECRET = 'CHANGE_THIS_TO_A_RANDOM_STRING';
 
-// Reunion sheet names
-const REUNION_SHEET    = 'Reunion';      // admin-managed content (schedule, info, bring list)
-const FOOD_SIGNUP_SHEET = 'FoodSignup'; // anyone can sign up
-
-// Reunion sheet columns
-const RU = {
-  ID:           1,  // A
-  TYPE:         2,  // B  — 'info' | 'schedule' | 'bring'
-  TITLE:        3,  // C
-  BODY:         4,  // D
-  SORT_ORDER:   5,  // E
-  UPDATED_AT:   6,  // F
-  UPDATED_BY:   7,  // G
-};
-
-// FoodSignup sheet columns
-const FS = {
-  SIGNUP_ID:    1,  // A
-  PERSON_ID:    2,  // B
-  PERSON_NAME:  3,  // C
-  DISH:         4,  // D
-  CATEGORY:     5,  // E  — Main, Side, Dessert, Drinks, Snacks, Other
-  NOTES:        6,  // F
-  SIGNED_UP_AT: 7,  // G
-};
-
 // === ROUTING ===
 
 function doGet(e) {
@@ -110,7 +84,6 @@ function doGet(e) {
       case 'getData':      return jsonResponse(handleGetData(e.parameter));
       case 'getEvents':    return jsonResponse(handleGetEvents(e.parameter));
       case 'getChangelog': return jsonResponse(handleGetChangelog(e.parameter));
-      case 'getReunion':   return jsonResponse(handleGetReunion(e.parameter));
       default:             return jsonResponse({ error: 'Unknown action' });
     }
   } catch (err) {
@@ -128,10 +101,6 @@ function doPost(e) {
       case 'removePerson':      return jsonResponse(handleRemovePerson(body));
       case 'detachSpouse':      return jsonResponse(handleDetachSpouse(body));
       case 'addEvent':          return jsonResponse(handleAddEvent(body));
-      case 'signupFood':        return jsonResponse(handleSignupFood(body));
-      case 'removeSignup':      return jsonResponse(handleRemoveSignup(body));
-      case 'upsertReunionItem': return jsonResponse(handleUpsertReunionItem(body));
-      case 'deleteReunionItem': return jsonResponse(handleDeleteReunionItem(body));
       default:                  return jsonResponse({ error: 'Unknown action' });
     }
   } catch (err) {
@@ -1113,166 +1082,3 @@ function resolveAuth(token, data) {
   };
 }
 
-// ============================================================
-// === REUNION ================================================
-// ============================================================
-
-function handleGetReunion(params) {
-  if (!verifyToken(params.token)) return { error: 'Invalid or expired session.' };
-
-  var ss = SpreadsheetApp.openById(SHEET_ID);
-
-  // Reunion content (admin-managed)
-  var ruSheet = ensureSheet(ss, REUNION_SHEET,
-    ['ID','Type','Title','Body','SortOrder','UpdatedAt','UpdatedBy']);
-  var ruData = ruSheet.getDataRange().getValues();
-  var items = [];
-  for (var i = 1; i < ruData.length; i++) {
-    var row = ruData[i];
-    if (!row[RU.ID - 1]) continue;
-    items.push({
-      id:        row[RU.ID - 1],
-      type:      str(row[RU.TYPE - 1]),
-      title:     str(row[RU.TITLE - 1]),
-      body:      str(row[RU.BODY - 1]),
-      sortOrder: parseInt(row[RU.SORT_ORDER - 1]) || 0,
-      updatedAt: str(row[RU.UPDATED_AT - 1]),
-      updatedBy: str(row[RU.UPDATED_BY - 1]),
-    });
-  }
-  items.sort(function(a, b) { return a.sortOrder - b.sortOrder; });
-
-  // Food signups (everyone)
-  var fsSheet = ensureSheet(ss, FOOD_SIGNUP_SHEET,
-    ['SignupID','PersonID','PersonName','Dish','Category','Notes','SignedUpAt']);
-  var fsData = fsSheet.getDataRange().getValues();
-  var signups = [];
-  for (var j = 1; j < fsData.length; j++) {
-    var r = fsData[j];
-    if (!r[FS.SIGNUP_ID - 1]) continue;
-    signups.push({
-      signupId:   r[FS.SIGNUP_ID - 1],
-      personId:   String(r[FS.PERSON_ID - 1]),
-      personName: str(r[FS.PERSON_NAME - 1]),
-      dish:       str(r[FS.DISH - 1]),
-      category:   str(r[FS.CATEGORY - 1]),
-      notes:      str(r[FS.NOTES - 1]),
-      signedUpAt: str(r[FS.SIGNED_UP_AT - 1]),
-    });
-  }
-
-  return { items: items, signups: signups };
-}
-
-function handleSignupFood(body) {
-  if (!body.dish || !body.dish.trim()) return { error: 'Dish name is required.' };
-
-  var ss = SpreadsheetApp.openById(SHEET_ID);
-  var peopleData = ss.getSheetByName(SHEET_NAME).getDataRange().getValues();
-  var me = resolveAuth(body.token, peopleData);
-  if (!me) return { error: 'Invalid or expired session.' };
-  var myPersonId = me.personId;
-  var myName = me.firstName + ' ' + me.lastName;
-
-  var fsSheet = ensureSheet(ss, FOOD_SIGNUP_SHEET,
-    ['SignupID','PersonID','PersonName','Dish','Category','Notes','SignedUpAt']);
-  var newId = getLastId(fsSheet, FS.SIGNUP_ID) + 1;
-  var now = new Date().toISOString();
-
-  fsSheet.appendRow([
-    newId,
-    myPersonId,
-    myName,
-    body.dish.trim(),
-    body.category || 'Other',
-    body.notes || '',
-    now,
-  ]);
-
-  return { success: true, signupId: newId, personId: myPersonId, personName: myName };
-}
-
-function handleRemoveSignup(body) {
-  if (!body.signupId) return { error: 'signupId required.' };
-
-  var ss = SpreadsheetApp.openById(SHEET_ID);
-  var peopleData = ss.getSheetByName(SHEET_NAME).getDataRange().getValues();
-  var me = resolveAuth(body.token, peopleData);
-  if (!me) return { error: 'Invalid or expired session.' };
-  var myPersonId = me.personId;
-  var isAdmin = me.isAdmin;
-
-  var fsSheet = ensureSheet(ss, FOOD_SIGNUP_SHEET,
-    ['SignupID','PersonID','PersonName','Dish','Category','Notes','SignedUpAt']);
-  var fsData = fsSheet.getDataRange().getValues();
-
-  for (var i = 1; i < fsData.length; i++) {
-    if (String(fsData[i][FS.SIGNUP_ID - 1]) === String(body.signupId)) {
-      var rowPersonId = String(fsData[i][FS.PERSON_ID - 1]);
-      if (!isAdmin && rowPersonId !== myPersonId) {
-        return { error: 'You can only remove your own signup.' };
-      }
-      fsSheet.deleteRow(i + 1); // 1-indexed sheet row
-      return { success: true };
-    }
-  }
-  return { error: 'Signup not found.' };
-}
-
-// Admin: add or update a reunion content item (schedule, info, bring list)
-function handleUpsertReunionItem(body) {
-  var ss = SpreadsheetApp.openById(SHEET_ID);
-  var peopleData = ss.getSheetByName(SHEET_NAME).getDataRange().getValues();
-  var me = resolveAuth(body.token, peopleData);
-  if (!me) return { error: 'Invalid or expired session.' };
-  if (!me.isAdmin) return { error: 'Admin access required.' };
-
-  var myPersonId = me.personId;
-  var now = new Date().toISOString();
-
-  var ruSheet = ensureSheet(ss, REUNION_SHEET,
-    ['ID','Type','Title','Body','SortOrder','UpdatedAt','UpdatedBy']);
-
-  if (body.id) {
-    // Update existing row
-    var ruData = ruSheet.getDataRange().getValues();
-    for (var i = 1; i < ruData.length; i++) {
-      if (String(ruData[i][RU.ID - 1]) === String(body.id)) {
-        var sheetRow = i + 1;
-        if (body.title !== undefined) ruSheet.getRange(sheetRow, RU.TITLE).setValue(body.title);
-        if (body.body !== undefined)  ruSheet.getRange(sheetRow, RU.BODY).setValue(body.body);
-        if (body.sortOrder !== undefined) ruSheet.getRange(sheetRow, RU.SORT_ORDER).setValue(body.sortOrder);
-        ruSheet.getRange(sheetRow, RU.UPDATED_AT).setValue(now);
-        ruSheet.getRange(sheetRow, RU.UPDATED_BY).setValue(myPersonId);
-        return { success: true, id: body.id };
-      }
-    }
-    return { error: 'Item not found.' };
-  } else {
-    // New item
-    var newId = getLastId(ruSheet, RU.ID) + 1;
-    var sortOrder = body.sortOrder || (getLastId(ruSheet, RU.SORT_ORDER) + 10);
-    ruSheet.appendRow([newId, body.type || 'info', body.title || '', body.body || '', sortOrder, now, myPersonId]);
-    return { success: true, id: newId };
-  }
-}
-
-function handleDeleteReunionItem(body) {
-  var ss = SpreadsheetApp.openById(SHEET_ID);
-  var peopleData = ss.getSheetByName(SHEET_NAME).getDataRange().getValues();
-  var me = resolveAuth(body.token, peopleData);
-  if (!me) return { error: 'Invalid or expired session.' };
-  if (!me.isAdmin) return { error: 'Admin access required.' };
-
-  var ruSheet = ensureSheet(ss, REUNION_SHEET,
-    ['ID','Type','Title','Body','SortOrder','UpdatedAt','UpdatedBy']);
-  var ruData = ruSheet.getDataRange().getValues();
-
-  for (var i = 1; i < ruData.length; i++) {
-    if (String(ruData[i][RU.ID - 1]) === String(body.id)) {
-      ruSheet.deleteRow(i + 1);
-      return { success: true };
-    }
-  }
-  return { error: 'Item not found.' };
-}

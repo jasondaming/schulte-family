@@ -8,7 +8,6 @@ import { initDirectory } from './directory.js';
 import { initTree } from './tree.js';
 import { initProfile } from './profile.js';
 import { initAdmin } from './admin.js';
-import { initReunion } from './reunion.js';
 import { initHistory } from './history.js';
 
 let people = [];
@@ -74,7 +73,6 @@ async function loadData() {
     initDirectory(people);
     initTree(people);
     await initProfile(people, session);
-    await initReunion(session);
     initHistory();
 
     if (session.isAdmin) {
@@ -182,6 +180,7 @@ function setupNav() {
 
   function navigate(viewName) {
     if (viewName === 'admin' && !(session && session.isAdmin)) viewName = 'directory';
+    if (!document.getElementById(`${viewName}-view`)) viewName = 'directory';
 
     links.forEach(l => l.classList.toggle('active', l.dataset.view === viewName));
     views.forEach(v => v.classList.toggle('active', v.id === `${viewName}-view`));

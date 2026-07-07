@@ -67,10 +67,12 @@ const CAMPOREE_HISTORY = [
   {
     year: '2026',
     location: "Santa's Cottages",
-    album: '',
-    image: '',
-    note: 'Album can be added after the July 2-5, 2026 Camporee.',
-    current: true,
+    album: 'https://photos.app.goo.gl/weTwT12vNXbTxPAm7',
+    image: 'https://lh3.googleusercontent.com/pw/AP1GczPm--EOhFjcfDro4CevC8CTG2nUGiNCUhUJ4SXjkbnKsYEIoBoEF2-YwFC3_I28rk8tE23a9_8maH2_F7Gx3t-AWIQf9KUCthxhLZbv-l869l1rCkZzEYPnX640hDayJkJ5BOqx0cccWXh4FayNZ1mLGg=w1895-h1067-s-no?authuser=0',
+    imageHref: 'https://photos.google.com/share/AF1QipPwJzYm2UW6s1uFt_6hLO5ljeK2-jCWJ0l7DrRqJ3KR-Iygyjtay2DJoNgY1Cw9cg/photo/AF1QipPmqLWJwkpNVoW1QD0vkdqaX31Jb0qXpsDpt0qZ?key=Q3FQR0xLNGIzV2FGZURxNlVvVVdxTUtJQTRsX0hn',
+    links: [
+      { label: 'Open GroupMe photo album', href: 'https://photos.app.goo.gl/vagV8rqdRtCwWt9H6' },
+    ],
   },
 ];
 
@@ -126,29 +128,39 @@ function renderHistory() {
 
 function renderTimelineItem(item) {
   return `
-    <article class="history-item${item.current ? ' history-item-current' : ''}">
+    <article class="history-item">
       <div class="history-year">${esc(item.year)}</div>
       ${renderPhoto(item)}
       <div class="history-item-body">
         <h3>${esc(item.location)}</h3>
         ${item.note ? `<p>${esc(item.note)}</p>` : ''}
         <div class="history-item-actions">
-          ${item.album
-            ? `<a href="${esc(item.album)}" target="_blank" rel="noopener">Open photo album</a>`
-            : '<a href="#reunion">Current Camporee info</a>'}
+          ${renderHistoryLinks(item)}
         </div>
       </div>
     </article>`;
 }
 
+function renderHistoryLinks(item) {
+  const links = [];
+  if (item.album) links.push({ label: 'Open photo album', href: item.album });
+  if (item.links) links.push(...item.links);
+
+  if (!links.length) return '<span class="history-no-album">Photo album pending</span>';
+
+  return links.map(link => `<a href="${esc(link.href)}" target="_blank" rel="noopener">${esc(link.label)}</a>`).join('');
+}
 function renderPhoto(item) {
   if (!item.image) {
+    if (item.album) {
+      return `<a class="history-photo history-photo-pending" href="${esc(item.album)}" target="_blank" rel="noopener"><span>Open album</span></a>`;
+    }
     return '<div class="history-photo history-photo-pending"><span>Photo pending</span></div>';
   }
 
   const label = `${item.year} Schulte Camporee at ${item.location}`;
   return `
-    <a class="history-photo" href="${esc(item.album || item.image)}" target="_blank" rel="noopener" aria-label="Open ${esc(label)} photo album">
+    <a class="history-photo" href="${esc(item.imageHref || item.album || item.image)}" target="_blank" rel="noopener" aria-label="Open ${esc(label)} photo album">
       <img src="${esc(item.image)}" alt="${esc(label)}" loading="lazy">
       <span>Open photo</span>
     </a>`;
